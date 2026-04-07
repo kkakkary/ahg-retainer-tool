@@ -27,7 +27,17 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host "Node.js already installed: $(node --version)" -ForegroundColor Green
 }
 
-# ── 3. Install npm dependencies ───────────────────────────────────────────────
+# ── 3. Install LibreOffice if missing ─────────────────────────────────────────
+$libreOfficeExe = "C:\Program Files\LibreOffice\program\soffice.exe"
+if (-not (Test-Path $libreOfficeExe)) {
+    Write-Host "Installing LibreOffice..." -ForegroundColor Yellow
+    winget install --id TheDocumentFoundation.LibreOffice --silent --accept-package-agreements --accept-source-agreements
+    Write-Host "LibreOffice installed." -ForegroundColor Green
+} else {
+    Write-Host "LibreOffice already installed." -ForegroundColor Green
+}
+
+# ── 4. Install npm dependencies ───────────────────────────────────────────────
 Write-Host ""
 Write-Host "Installing npm packages..." -ForegroundColor Yellow
 npm install

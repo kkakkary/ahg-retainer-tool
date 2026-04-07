@@ -29,7 +29,16 @@ else
   echo "Node.js already installed: $(node --version)"
 fi
 
-# ── 3. Install npm dependencies ───────────────────────────────────────────────
+# ── 3. Install LibreOffice if missing ─────────────────────────────────────────
+if [ ! -d "/Applications/LibreOffice.app" ]; then
+  echo "Installing LibreOffice..."
+  brew install --cask libreoffice
+  echo "LibreOffice installed."
+else
+  echo "LibreOffice already installed."
+fi
+
+# ── 4. Install npm dependencies ───────────────────────────────────────────────
 echo ""
 echo "Installing npm packages..."
 npm install
