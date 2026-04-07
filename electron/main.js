@@ -1,41 +1,10 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
-const mammoth = require('mammoth');
-
-async function convertToPdf(docxBuffer) {
-  const { value: html } = await mammoth.convertToHtml({ buffer: docxBuffer });
-  const fullHtml = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  body { font-family: Arial, sans-serif; font-size: 11pt; margin: 1in; line-height: 1.4; }
-  p { margin: 0 0 6pt 0; }
-  table { border-collapse: collapse; width: 100%; }
-  td, th { border: 1px solid #000; padding: 4px 6px; }
-  h1, h2, h3 { margin: 12pt 0 6pt 0; }
-</style>
-</head>
-<body>${html}</body>
-</html>`;
-
-  const tmpHtml = path.join(os.tmpdir(), `ahg_${Date.now()}.html`);
-  fs.writeFileSync(tmpHtml, fullHtml, 'utf-8');
-
-  const win = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: false, contextIsolation: true } });
-  try {
-    await win.loadFile(tmpHtml);
-    const pdfBuffer = await win.webContents.printToPDF({ format: 'Letter', printBackground: true });
-    return pdfBuffer;
-  } finally {
-    win.close();
-    try { fs.unlinkSync(tmpHtml); } catch (_) {}
-  }
-}
+const libre = require('libreoffice-convert');
+libre.convertAsync = require('util').promisify(libre.convert);
 
 app.name = 'AHG Document Creation Tool';
 
@@ -169,7 +138,7 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
     buffer = zip.generate({ type: 'nodebuffer' });
 
     // ── Convert to PDF ───────────────────────────────────────────────────────
-    const pdfBuffer = await convertToPdf(buffer);
+    const pdfBuffer = await libre.convertAsync(buffer, '.pdf', undefined);
 
     // ── Save dialog ─────────────────────────────────────────────────────────
     const FORM_LABELS = {
