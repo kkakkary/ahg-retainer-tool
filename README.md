@@ -17,11 +17,7 @@ Generated PDFs are automatically saved to the client's folder on the NAS (`\\Rea
 
 ## Requirements
 
-Before installing or running the app, the target Windows machine must have:
-
-1. **LibreOffice** — required for PDF conversion  
-   Download free at: https://www.libreoffice.org/download/libreoffice/
-2. **Access to `\\ReadyNAS\Public\Client Folders A-Z`** — for automatic save directory routing
+- **Access to `\\ReadyNAS\Public\Client Folders A-Z`** (Windows) or `/Volumes/Public/Client Folders A-Z` (macOS) — for automatic save directory routing. If unavailable, the save dialog falls back to Downloads.
 
 ---
 
