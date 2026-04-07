@@ -147,7 +147,9 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
     };
     const formLabel = FORM_LABELS[filenamePrefix] || filenamePrefix;
 
-    const CLIENT_FOLDERS_BASE = '\\\\ReadyNAS\\Public\\Client Folders A-Z';
+    const CLIENT_FOLDERS_BASE = process.platform === 'win32'
+      ? '\\\\ReadyNAS\\Public\\Client Folders A-Z'
+      : '/Volumes/Public/Client Folders A-Z';
 
     function getAlphaFolder(lastName) {
       const c = (lastName[0] || 'A').toUpperCase();

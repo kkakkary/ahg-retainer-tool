@@ -25,11 +25,17 @@ Before installing or running the app, the target Windows machine must have:
 
 ---
 
-## Installation (Windows)
+## Installation
 
+### Windows
 1. Download `AHG Document Creation Tool Setup.exe` from the [Releases](../../releases) page
-2. Run the installer — it installs per-user with no admin rights required
+2. Run the installer — installs per-user, no admin rights required
 3. Launch **AHG Document Creation Tool** from the Start menu or Desktop
+
+### macOS
+1. Download `AHG Document Creation Tool.dmg` from the [Releases](../../releases) page
+2. Double-click the `.dmg`, drag the app into your Applications folder
+3. Launch from Applications or Spotlight
 
 ---
 
@@ -45,6 +51,20 @@ Before installing or running the app, the target Windows machine must have:
 3. Right-click `setup.ps1` → **Run with PowerShell**
 
 The script automatically installs Node.js and LibreOffice (via winget), runs `npm install`, and builds the installer into the `release/` folder.
+
+### Quick Setup (macOS — recommended)
+
+1. Install [Git](https://git-scm.com/download/mac) if not already installed
+2. Clone the repo:
+   ```
+   git clone https://github.com/kkakkary/ahg-retainer-tool.git
+   ```
+3. In Terminal, run:
+   ```
+   bash setup.sh
+   ```
+
+The script automatically installs Homebrew, Node.js, and LibreOffice, runs `npm install`, and builds the DMG into the `release/` folder.
 
 ### Manual Setup
 

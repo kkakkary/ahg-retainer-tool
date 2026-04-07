@@ -46,6 +46,10 @@
       "oneClick": true,
       "perMachine": false
     },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.business"
+    },
     "files": [
       "dist/**/*",
       "electron/**/*",
