@@ -35,13 +35,26 @@ Before installing or running the app, the target Windows machine must have:
 
 ## Building from Source
 
-### Prerequisites
+### Quick Setup (Windows — recommended)
+
+1. Install [Git](https://git-scm.com/download/win)
+2. Clone the repo:
+   ```
+   git clone https://github.com/kkakkary/ahg-retainer-tool.git
+   ```
+3. Right-click `setup.ps1` → **Run with PowerShell**
+
+The script automatically installs Node.js and LibreOffice (via winget), runs `npm install`, and builds the installer into the `release/` folder.
+
+### Manual Setup
+
+#### Prerequisites
 
 - [Node.js](https://nodejs.org/) v18 or later
 - A **Windows machine** (required to build the Windows installer)
 - LibreOffice installed on the build machine
 
-### Steps
+#### Steps
 
 ```bash
 # 1. Clone the repo
