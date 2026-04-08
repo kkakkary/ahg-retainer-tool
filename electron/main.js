@@ -96,7 +96,7 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
 
     let xml = zip.file('word/document.xml').asText();
 
-    if (templateFile === 'bk_estimate.docx') {
+    if (templateFile === 'bk_estimate.docx' || templateFile === 'ch13_estimate.docx') {
       // Expand {#fee_rows}...{fee_amount}...{/fee_rows} loop —
       // repeats the template paragraph once per filled fee, removing empty rows
       const feeRows = formData.fee_rows || [];
@@ -142,8 +142,22 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
 
     // ── Save dialog ─────────────────────────────────────────────────────────
     const FORM_LABELS = {
-      'Griffin_Ch7Retainer': 'Ch7 Retainer',
-      'Griffin_BkEstimate':  'BK Fee Estimate',
+      'Griffin_Ch7Retainer':        'Ch7 Retainer',
+      'Griffin_BkEstimate':         'BK Fee Estimate',
+      'Griffin_BizCh7Retainer':     'Business Ch7 Retainer',
+      'Griffin_Ch11Retainer':       'Ch11 Retainer',
+      'Griffin_Ch13CentralConsumer':'Ch13 Central Consumer Retainer',
+      'Griffin_Ch13SouthConsumer':  'Ch13 South Consumer Retainer',
+      'Griffin_Ch13SouthBusiness':  'Ch13 South Business Retainer',
+      'Griffin_Ch13Estimate':       'Ch13 Fee Estimate',
+      'Griffin_SpanishCh7':         'Ch7 Retainer (Spanish)',
+      'Griffin_CivilHourlyLit':     'Civil Retainer (Hourly Litigation)',
+      'Griffin_CivilHourlyNonLit':  'Civil Retainer (Hourly Non-Litigation)',
+      'Griffin_CivilFlatFee':       'Civil Retainer (Flat Fee)',
+      'Griffin_CivilContingency':   'Civil Retainer (Contingency)',
+      'Griffin_FamilyLaw':          'Family Law Retainer',
+      'Griffin_UD':                 'UD Retainer',
+      'Griffin_Probate':            'Probate Retainer',
     };
     const formLabel = FORM_LABELS[filenamePrefix] || filenamePrefix;
 
