@@ -146,6 +146,7 @@ const TABS = [
           { key: 'Hourly_Rate',         label: 'Hourly Rate',                    type: 'currency', placeholder: 'e.g. 350.00' },
           { key: 'Retainer_Amount',     label: 'Initial Retainer',               type: 'currency', placeholder: 'e.g. 5,000.00' },
           { key: 'Retainer_Replenish',  label: 'Replenish Retainer When Below',  type: 'currency', placeholder: 'e.g. 1,000.00' },
+          { key: 'Due_Date',            label: 'Deposit Due Date',               type: 'plain',    placeholder: 'e.g. April 30, 2026' },
         ]}
         templateFile="civil_hourly_lit_retainer.docx"
         filenamePrefix="Griffin_CivilHourlyLit"
