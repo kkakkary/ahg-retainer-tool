@@ -1,6 +1,6 @@
 {
   "name": "ahg-retainer-tool",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "AHG Retainer Agreement Generator — Law Office of Andrew H. Griffin, III, APC",
   "main": "electron/main.js",
   "scripts": {
