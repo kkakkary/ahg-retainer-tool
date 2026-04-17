@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Ch7RetainerForm from './components/Ch7RetainerForm';
 import BkEstimateForm from './components/BkEstimateForm';
 import Ch13EstimateForm from './components/Ch13EstimateForm';
@@ -268,6 +268,16 @@ const TABS = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(TABS[0].id);
+  const [defaultDir, setDefaultDir] = useState(null);
+
+  useEffect(() => {
+    window.electronAPI.getDefaultDir().then(setDefaultDir);
+  }, []);
+
+  async function handlePickDir() {
+    const chosen = await window.electronAPI.pickDefaultDir();
+    if (chosen) setDefaultDir(chosen);
+  }
 
   const ActiveForm = TABS.find((t) => t.id === activeTab).component;
 
@@ -279,6 +289,17 @@ export default function App() {
         <div className="flex flex-col">
           <span className="text-base font-bold text-amber-800 leading-tight">AHG Document Creation Tool</span>
           <span className="text-xs text-amber-600">Law Office of Andrew H. Griffin, III, APC</span>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs text-gray-500 hidden sm:block truncate max-w-xs">
+            {defaultDir ? `Default folder: ${defaultDir}` : 'No default folder set'}
+          </span>
+          <button
+            onClick={handlePickDir}
+            className="text-xs px-3 py-1.5 rounded border border-amber-300 text-amber-700 hover:bg-amber-50 whitespace-nowrap"
+          >
+            {defaultDir ? 'Change Folder' : 'Set Default Folder'}
+          </button>
         </div>
       </header>
 

@@ -1,12 +1,53 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { autoUpdater } = require('electron-updater');
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const libre = require('libreoffice-convert');
 libre.convertAsync = require('util').promisify(libre.convert);
 
 app.name = 'AHG Document Creation Tool';
+
+// ── Persistent config ─────────────────────────────────────────────────────────
+
+function getConfigPath() {
+  return path.join(app.getPath('userData'), 'config.json');
+}
+
+function readConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(getConfigPath(), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function writeConfig(data) {
+  fs.writeFileSync(getConfigPath(), JSON.stringify(data, null, 2));
+}
+
+ipcMain.handle('get-default-dir', () => {
+  return readConfig().defaultDir || null;
+});
+
+ipcMain.handle('pick-default-dir', async () => {
+  try {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openDirectory'],
+      title: 'Choose Default Save Folder',
+    });
+    if (canceled || !filePaths.length) return null;
+    const chosen = filePaths[0];
+    const config = readConfig();
+    config.defaultDir = chosen;
+    writeConfig(config);
+    return chosen;
+  } catch (err) {
+    console.error('pick-default-dir error:', err.message);
+    return null;
+  }
+});
 
 // ── Helpers for manual template replacement ───────────────────────────────────
 
@@ -71,6 +112,7 @@ function createWindow() {
     width: 1280,
     height: 900,
     resizable: true,
+    icon: path.join(__dirname, '..', 'assets', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -192,18 +234,19 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
     const alphaFolder  = getAlphaFolder(primaryLast);
 
     // Walk up the path until we find a directory that exists
+    const storedDefault = readConfig().defaultDir;
     function deepestExisting(fullPath) {
       let current = fullPath;
       while (current && current !== path.dirname(current)) {
         if (fs.existsSync(current)) return current;
         current = path.dirname(current);
       }
-      return app.getPath('downloads');
+      return storedDefault || app.getPath('downloads');
     }
 
     const alphaDir = path.join(CLIENT_FOLDERS_BASE, alphaFolder);
 
-    // Try to find a client subfolder starting with "LastName, FirstName"
+    // Find or create the client subfolder
     let defaultDir = deepestExisting(alphaDir);
     if (fs.existsSync(alphaDir)) {
       const search = safeName.toLowerCase();
@@ -211,7 +254,15 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
         const full = path.join(alphaDir, entry);
         return fs.statSync(full).isDirectory() && entry.toLowerCase().startsWith(search);
       });
-      if (match) defaultDir = path.join(alphaDir, match);
+      if (match) {
+        // Existing client folder found — use it
+        defaultDir = path.join(alphaDir, match);
+      } else {
+        // No folder found — create one as "LastName, FirstName"
+        const newClientDir = path.join(alphaDir, safeName);
+        fs.mkdirSync(newClientDir, { recursive: true });
+        defaultDir = newClientDir;
+      }
     }
 
     const { canceled, filePath } = await dialog.showSaveDialog({
@@ -238,10 +289,45 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 
 app.whenReady().then(() => {
+  if (process.platform === 'darwin') {
+    try {
+      const iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
+      const icon = nativeImage.createFromPath(iconPath);
+      if (!icon.isEmpty()) app.dock.setIcon(icon);
+    } catch (err) {
+      console.warn('Could not set dock icon:', err.message);
+    }
+  }
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+
+  // Auto-update — only runs in packaged app, not dev
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdatesAndNotify();
+
+    autoUpdater.on('update-available', () => {
+      dialog.showMessageBox({
+        type: 'info',
+        title: 'Update Available',
+        message: 'A new version is available. It will download in the background and install when you quit.',
+      });
+    });
+
+    autoUpdater.on('update-downloaded', () => {
+      dialog.showMessageBox({
+        type: 'info',
+        title: 'Update Ready',
+        message: 'Update downloaded. The app will restart to apply it.',
+        buttons: ['Restart Now', 'Later'],
+      }).then(({ response }) => {
+        if (response === 0) autoUpdater.quitAndInstall();
+      });
+    });
+  }
+}).catch((err) => {
+  console.error('app.whenReady error:', err);
 });
 
 app.on('window-all-closed', () => {
