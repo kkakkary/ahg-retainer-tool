@@ -205,7 +205,7 @@ const TABS = [
         title="Civil Retainer Agreement — Contingency"
         fields={[
           { key: 'Client_Name',      label: 'Client Name',        type: 'text',     placeholder: 'e.g. Jane Doe' },
-          { key: 'Case_Description', label: 'Matter Description',  type: 'textarea', placeholder: 'e.g. Automobile Accident that occurred on...' },
+          { key: 'Case_Description', label: 'Scope of Work',        type: 'textarea', placeholder: 'e.g. Automobile Accident that occurred on...' },
           { key: 'Case_Date',        label: 'Date of Incident',    type: 'plain',    placeholder: 'e.g. November 24, 2020' },
           { key: 'Cost_Deposit',     label: 'Initial Cost Deposit', type: 'currency', placeholder: 'e.g. 500.00' },
         ]}
@@ -224,6 +224,7 @@ const TABS = [
         title="Family Law Retainer Agreement"
         fields={[
           { key: 'Client_Name',        label: 'Client Name',                    type: 'text',     placeholder: 'e.g. Jane Doe' },
+          { key: 'Matter_Description', label: 'Scope of Work',                  type: 'textarea', placeholder: 'e.g. Dissolution of Marriage' },
           { key: 'Hourly_Rate',        label: 'Hourly Rate',                    type: 'currency', placeholder: 'e.g. 350.00' },
           { key: 'Retainer_Amount',    label: 'Initial Retainer',               type: 'currency', placeholder: 'e.g. 5,000.00' },
           { key: 'Retainer_Replenish', label: 'Replenish Retainer When Below',  type: 'currency', placeholder: 'e.g. 1,000.00' },
