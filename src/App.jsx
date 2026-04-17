@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Ch7RetainerForm from './components/Ch7RetainerForm';
 import BkEstimateForm from './components/BkEstimateForm';
 import Ch13EstimateForm from './components/Ch13EstimateForm';
@@ -161,10 +161,13 @@ const TABS = [
       <SimpleRetainerForm
         title="Civil Retainer Agreement — Hourly (Non-Litigation)"
         fields={[
-          { key: 'Client_Name',         label: 'Client Name',                    type: 'text',     placeholder: 'e.g. Jane Doe' },
-          { key: 'Hourly_Rate',         label: 'Hourly Rate',                    type: 'currency', placeholder: 'e.g. 350.00' },
-          { key: 'Retainer_Amount',     label: 'Initial Retainer',               type: 'currency', placeholder: 'e.g. 5,000.00' },
-          { key: 'Retainer_Replenish',  label: 'Replenish Retainer When Below',  type: 'currency', placeholder: 'e.g. 1,000.00' },
+          { key: 'Client_Name',         label: 'Client Name',                   type: 'text',     placeholder: 'e.g. Jane Doe' },
+          { key: 'Matter_Description',  label: 'Scope of Work',                 type: 'textarea', placeholder: 'e.g. Administration of the Smith Family Trust' },
+          { key: 'Contract_Date',       label: 'Contract Date',                 type: 'plain',    placeholder: 'e.g. April 16, 2026' },
+          { key: 'Hourly_Rate',         label: 'Hourly Rate',                   type: 'currency', placeholder: 'e.g. 350.00' },
+          { key: 'Retainer_Amount',     label: 'Initial Retainer',              type: 'currency', placeholder: 'e.g. 5,000.00' },
+          { key: 'Retainer_Replenish',  label: 'Replenish Retainer When Below', type: 'currency', placeholder: 'e.g. 1,000.00' },
+          { key: 'Due_Date',            label: 'Deposit Due Date',              type: 'plain',    placeholder: 'e.g. April 30, 2026' },
         ]}
         templateFile="civil_hourly_nonlit_retainer.docx"
         filenamePrefix="Griffin_CivilHourlyNonLit"
@@ -180,9 +183,12 @@ const TABS = [
       <SimpleRetainerForm
         title="Civil Retainer Agreement — Flat Fee"
         fields={[
-          { key: 'Client_Name',            label: 'Client Name',                    type: 'text',     placeholder: 'e.g. Jane Doe' },
-          { key: 'Attorney_Fee',           label: 'Attorney Fee',                   type: 'currency', placeholder: 'e.g. 5,000.00' },
-          { key: 'Attorney_Fee_Replenish', label: 'Replenish Fee When Below',       type: 'currency', placeholder: 'e.g. 1,000.00' },
+          { key: 'Client_Name',            label: 'Client Name',              type: 'text',     placeholder: 'e.g. Jane Doe' },
+          { key: 'Matter_Description',     label: 'Scope of Work',            type: 'textarea', placeholder: 'e.g. Proof of claim in Bankruptcy Court' },
+          { key: 'Contract_Date',          label: 'Contract Date',            type: 'plain',    placeholder: 'e.g. April 16, 2026' },
+          { key: 'Attorney_Fee',           label: 'Attorney Fee',             type: 'currency', placeholder: 'e.g. 5,000.00' },
+          { key: 'Attorney_Fee_Replenish', label: 'Replenish Fee When Below', type: 'currency', placeholder: 'e.g. 1,000.00' },
+          { key: 'Due_Date',               label: 'Deposit Due Date',         type: 'plain',    placeholder: 'e.g. April 30, 2026' },
         ]}
         templateFile="civil_flat_fee_retainer.docx"
         filenamePrefix="Griffin_CivilFlatFee"
@@ -268,16 +274,11 @@ const TABS = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(TABS[0].id);
-  const [defaultDir, setDefaultDir] = useState(null);
+  const [version, setVersion] = useState('');
 
   useEffect(() => {
-    window.electronAPI.getDefaultDir().then(setDefaultDir);
+    window.electronAPI.getVersion().then(setVersion);
   }, []);
-
-  async function handlePickDir() {
-    const chosen = await window.electronAPI.pickDefaultDir();
-    if (chosen) setDefaultDir(chosen);
-  }
 
   const ActiveForm = TABS.find((t) => t.id === activeTab).component;
 
@@ -290,17 +291,9 @@ export default function App() {
           <span className="text-base font-bold text-amber-800 leading-tight">AHG Document Creation Tool</span>
           <span className="text-xs text-amber-600">Law Office of Andrew H. Griffin, III, APC</span>
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-gray-500 hidden sm:block truncate max-w-xs">
-            {defaultDir ? `Default folder: ${defaultDir}` : 'No default folder set'}
-          </span>
-          <button
-            onClick={handlePickDir}
-            className="text-xs px-3 py-1.5 rounded border border-amber-300 text-amber-700 hover:bg-amber-50 whitespace-nowrap"
-          >
-            {defaultDir ? 'Change Folder' : 'Set Default Folder'}
-          </button>
-        </div>
+        {version && (
+          <span className="ml-auto text-xs text-gray-400">v{version}</span>
+        )}
       </header>
 
       {/* Tab bar — horizontally scrollable when tabs overflow */}
