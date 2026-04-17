@@ -1,11 +1,88 @@
 const { app, BrowserWindow, ipcMain, dialog, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { execFile, exec } = require('child_process');
 const { autoUpdater } = require('electron-updater');
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const libre = require('libreoffice-convert');
 libre.convertAsync = require('util').promisify(libre.convert);
+
+// ── LibreOffice check & install ───────────────────────────────────────────────
+
+const SOFFICE_PATHS = [
+  '/Applications/LibreOffice.app/Contents/MacOS/soffice',
+  '/usr/local/bin/soffice',
+  '/opt/homebrew/bin/soffice',
+];
+
+function isLibreOfficeInstalled() {
+  if (process.env.TEST_LIBREOFFICE_MISSING) return false; // test flag
+  return SOFFICE_PATHS.some(p => fs.existsSync(p));
+}
+
+function installLibreOffice(win) {
+  return new Promise((resolve) => {
+    // Show progress in the window title
+    win.setTitle('Installing LibreOffice…');
+
+    // Try Homebrew first, fall back to direct download via curl + hdiutil
+    const brewPath = fs.existsSync('/opt/homebrew/bin/brew')
+      ? '/opt/homebrew/bin/brew'
+      : fs.existsSync('/usr/local/bin/brew')
+        ? '/usr/local/bin/brew'
+        : null;
+
+    if (brewPath) {
+      exec(`${brewPath} install --cask libreoffice`, (err) => {
+        win.setTitle('AHG Document Creation Tool');
+        resolve(!err);
+      });
+    } else {
+      // Direct download via shell — curl downloads, hdiutil mounts, then we copy
+      const script = `
+        set -e
+        DMG=$(mktemp /tmp/libreoffice_XXXXXX.dmg)
+        curl -L "https://download.documentfoundation.org/libreoffice/stable/25.2.2/mac/aarch64/LibreOffice_25.2.2_MacOS_aarch64.dmg" -o "$DMG"
+        MOUNT=$(hdiutil attach "$DMG" -nobrowse -noautoopen | tail -1 | awk '{print $NF}')
+        cp -r "$MOUNT/LibreOffice.app" /Applications/
+        hdiutil detach "$MOUNT" -quiet
+        rm -f "$DMG"
+      `;
+      exec(script, (err) => {
+        win.setTitle('AHG Document Creation Tool');
+        resolve(!err);
+      });
+    }
+  });
+}
+
+async function ensureLibreOffice(win) {
+  if (isLibreOfficeInstalled()) return;
+
+  const { response } = await dialog.showMessageBox(win, {
+    type: 'info',
+    title: 'LibreOffice Required',
+    message: 'LibreOffice is needed to generate PDFs.',
+    detail: 'It will be downloaded and installed automatically (~350 MB). This only happens once.',
+    buttons: ['Install Now', 'Quit'],
+    defaultId: 0,
+  });
+
+  if (response === 1) { app.quit(); return; }
+
+  const ok = await installLibreOffice(win);
+
+  if (!ok || !isLibreOfficeInstalled()) {
+    await dialog.showMessageBox(win, {
+      type: 'error',
+      title: 'Installation Failed',
+      message: 'Could not install LibreOffice automatically.',
+      detail: 'Please download and install it manually from https://www.libreoffice.org, then relaunch the app.',
+      buttons: ['OK'],
+    });
+  }
+}
 
 app.name = 'AHG Document Creation Tool';
 
@@ -125,6 +202,7 @@ function createWindow() {
   } else {
     win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   }
+  return win;
 }
 
 // ── IPC handler ───────────────────────────────────────────────────────────────
@@ -298,7 +376,9 @@ app.whenReady().then(() => {
       console.warn('Could not set dock icon:', err.message);
     }
   }
-  createWindow();
+  const win = createWindow();
+  ensureLibreOffice(win);
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
