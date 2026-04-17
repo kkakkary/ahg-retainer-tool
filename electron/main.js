@@ -100,31 +100,42 @@ function readConfig() {
   }
 }
 
-function writeConfig(data) {
-  fs.writeFileSync(getConfigPath(), JSON.stringify(data, null, 2));
+ipcMain.handle('get-version', () => app.getVersion());
+
+// ── Number to words ───────────────────────────────────────────────────────────
+
+function numberToWords(n) {
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+                'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+                'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  if (n === 0) return 'Zero';
+
+  function belowThousand(num) {
+    if (num === 0) return '';
+    if (num < 20) return ones[num];
+    if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 ? ' ' + ones[num % 10] : '');
+    return ones[Math.floor(num / 100)] + ' Hundred' + (num % 100 ? ' ' + belowThousand(num % 100) : '');
+  }
+
+  const parts = [];
+  if (n >= 1000000) { parts.push(belowThousand(Math.floor(n / 1000000)) + ' Million'); n %= 1000000; }
+  if (n >= 1000)    { parts.push(belowThousand(Math.floor(n / 1000)) + ' Thousand'); n %= 1000; }
+  if (n > 0)        { parts.push(belowThousand(n)); }
+  return parts.join(' ');
 }
 
-ipcMain.handle('get-default-dir', () => {
-  return readConfig().defaultDir || null;
-});
-
-ipcMain.handle('pick-default-dir', async () => {
-  try {
-    const { canceled, filePaths } = await dialog.showOpenDialog({
-      properties: ['openDirectory'],
-      title: 'Choose Default Save Folder',
-    });
-    if (canceled || !filePaths.length) return null;
-    const chosen = filePaths[0];
-    const config = readConfig();
-    config.defaultDir = chosen;
-    writeConfig(config);
-    return chosen;
-  } catch (err) {
-    console.error('pick-default-dir error:', err.message);
-    return null;
-  }
-});
+function currencyToWords(str) {
+  // Parse "$1,750.00" or "1750" → "One Thousand Seven Hundred Fifty Dollars"
+  const num = parseFloat(String(str).replace(/[$,]/g, ''));
+  if (isNaN(num)) return '';
+  const dollars = Math.floor(num);
+  const cents   = Math.round((num - dollars) * 100);
+  let result = numberToWords(dollars) + ' Dollar' + (dollars !== 1 ? 's' : '');
+  if (cents > 0) result += ' and ' + numberToWords(cents) + ' Cent' + (cents !== 1 ? 's' : '');
+  return result;
+}
 
 // ── Helpers for manual template replacement ───────────────────────────────────
 
@@ -215,6 +226,11 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
     let buffer;
 
     let xml = zip.file('word/document.xml').asText();
+
+    // Auto-generate spelled-out currency fields
+    if (formData.Attorney_Fee)           formData.Attorney_Fee_Words           = currencyToWords(formData.Attorney_Fee);
+    if (formData.Attorney_Fee_Replenish) formData.Attorney_Fee_Replenish_Words = currencyToWords(formData.Attorney_Fee_Replenish);
+    if (formData.Retainer_Amount)        formData.Retainer_Amount_Words        = currencyToWords(formData.Retainer_Amount);
 
     if (templateFile === 'bk_estimate.docx' || templateFile === 'ch13_estimate.docx') {
       // Expand {#fee_rows}...{fee_amount}...{/fee_rows} loop —
