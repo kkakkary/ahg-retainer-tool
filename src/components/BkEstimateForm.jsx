@@ -43,6 +43,7 @@ const initialFees = Object.fromEntries(FEE_FIELDS.map((f) => [f.key, '']));
 export default function BkEstimateForm() {
   const [clientName, setClientName] = useState('');
   const [totalDebt, setTotalDebt] = useState('');
+  const [discountedFee, setDiscountedFee] = useState('');
   const [fees, setFees] = useState(initialFees);
   const [isGenerating, setIsGenerating] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
@@ -61,6 +62,7 @@ export default function BkEstimateForm() {
       const formData = {
         Client_Name: clientName,
         Debt: totalDebt ? `$${totalDebt}` : '',
+        Discounted_Fee: discountedFee ? `$${discountedFee}` : '',
       };
       // Individual fields for the first section
       for (const { key } of FEE_FIELDS) {
@@ -118,6 +120,19 @@ export default function BkEstimateForm() {
               value={totalDebt}
               onChange={(e) => setTotalDebt(e.target.value)}
               placeholder="e.g. 25,000.00"
+              className="w-full border border-gray-300 rounded-lg pl-5 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+            />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">If Paid Today</label>
+          <div className="relative">
+            <span className="absolute left-2.5 top-2 text-gray-400 text-sm">$</span>
+            <input
+              type="text"
+              value={discountedFee}
+              onChange={(e) => setDiscountedFee(e.target.value)}
+              placeholder="e.g. 2,333.00"
               className="w-full border border-gray-300 rounded-lg pl-5 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
