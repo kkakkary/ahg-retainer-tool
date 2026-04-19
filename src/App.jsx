@@ -3,6 +3,7 @@ import Ch7RetainerForm from './components/Ch7RetainerForm';
 import BkEstimateForm from './components/BkEstimateForm';
 import Ch13EstimateForm from './components/Ch13EstimateForm';
 import SimpleRetainerForm from './components/SimpleRetainerForm';
+import UDRetainerForm from './components/UDRetainerForm';
 import logo from './assets/logo.png';
 
 const TABS = [
@@ -241,19 +242,7 @@ const TABS = [
   {
     id: 'ud',
     label: 'UD',
-    component: () => (
-      <SimpleRetainerForm
-        title="Unlawful Detainer Retainer Agreement"
-        fields={[
-          { key: 'Client_Name',      label: 'Client / Landlord Name', type: 'text',     placeholder: 'e.g. Jane Doe' },
-          { key: 'Tenant_Name',      label: 'Tenant Name(s)',          type: 'plain',    placeholder: 'e.g. John Smith' },
-          { key: 'Property_Address', label: 'Property Address',        type: 'textarea', placeholder: 'e.g. 123 Main St, Chula Vista, CA 91914' },
-          { key: 'County',           label: 'County',                  type: 'plain',    placeholder: 'e.g. San Diego County' },
-        ]}
-        templateFile="ud_retainer.docx"
-        filenamePrefix="Griffin_UD"
-      />
-    ),
+    component: UDRetainerForm,
   },
 
   // ── Probate ────────────────────────────────────────────────────────────────
