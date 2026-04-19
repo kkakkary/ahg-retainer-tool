@@ -144,6 +144,8 @@ const TABS = [
         title="Civil Retainer Agreement — Hourly (Litigation)"
         fields={[
           { key: 'Client_Name',         label: 'Client Name',                    type: 'text',     placeholder: 'e.g. Jane Doe' },
+          { key: 'Matter_Description',  label: 'Scope of Work',                  type: 'textarea', placeholder: 'e.g. Defense of breach of contract claim' },
+          { key: 'Contract_Date',       label: 'Contract Date',                  type: 'plain',    placeholder: 'e.g. April 16, 2026' },
           { key: 'Hourly_Rate',         label: 'Hourly Rate',                    type: 'currency', placeholder: 'e.g. 350.00' },
           { key: 'Retainer_Amount',     label: 'Initial Retainer',               type: 'currency', placeholder: 'e.g. 5,000.00' },
           { key: 'Retainer_Replenish',  label: 'Replenish Retainer When Below',  type: 'currency', placeholder: 'e.g. 1,000.00' },
