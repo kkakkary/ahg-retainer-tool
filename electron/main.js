@@ -369,11 +369,6 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
       }
     }
 
-    // ── Preview in temp file before save dialog ──────────────────────────────
-    const tmpPath = path.join(app.getPath('temp'), `${safeName} - ${formLabel}.pdf`);
-    fs.writeFileSync(tmpPath, pdfBuffer);
-    shell.openPath(tmpPath);
-
     const { canceled, filePath } = await dialog.showSaveDialog({
       defaultPath: path.join(defaultDir, `${safeName} - ${formLabel}.pdf`),
       filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
@@ -381,7 +376,8 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
 
     if (canceled || !filePath) return { success: false, error: 'Save cancelled.' };
 
-    fs.copyFileSync(tmpPath, filePath);
+    fs.writeFileSync(filePath, pdfBuffer);
+    shell.openPath(filePath);
     return { success: true, filePath };
   } catch (err) {
     // Docxtemplater wraps errors — unwrap for a useful message
