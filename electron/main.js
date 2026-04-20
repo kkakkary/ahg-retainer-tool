@@ -274,7 +274,17 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
     buffer = zip.generate({ type: 'nodebuffer' });
 
     // ── Convert to PDF ───────────────────────────────────────────────────────
-    const pdfBuffer = await libre.convertAsync(buffer, '.pdf', undefined);
+    let pdfBuffer;
+    try {
+      pdfBuffer = await libre.convertAsync(buffer, '.pdf', undefined);
+    } catch (convErr) {
+      if (/source file could not be loaded/i.test(convErr.message)) {
+        await new Promise((resolve) => exec('pkill -9 soffice; sleep 1', resolve));
+        pdfBuffer = await libre.convertAsync(buffer, '.pdf', undefined);
+      } else {
+        throw convErr;
+      }
+    }
 
     // ── Save dialog ─────────────────────────────────────────────────────────
     const FORM_LABELS = {
