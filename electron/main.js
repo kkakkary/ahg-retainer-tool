@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, nativeImage, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execFile, exec } = require('child_process');
@@ -377,6 +377,7 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
     if (canceled || !filePath) return { success: false, error: 'Save cancelled.' };
 
     fs.writeFileSync(filePath, pdfBuffer);
+    shell.openPath(filePath);
     return { success: true, filePath };
   } catch (err) {
     // Docxtemplater wraps errors — unwrap for a useful message
