@@ -7,6 +7,13 @@ import UDRetainerForm from './components/UDRetainerForm';
 import logo from './assets/logo.png';
 
 const TABS = [
+  // ── BK Fee Estimate ────────────────────────────────────────────────────────
+  {
+    id: 'bk_estimate',
+    label: 'BK Fee Estimate',
+    component: BkEstimateForm,
+  },
+
   // ── Ch. 7 Retainer (original component) ───────────────────────────────────
   {
     id: 'ch7',
@@ -47,6 +54,31 @@ const TABS = [
         filenamePrefix="Griffin_Ch11Retainer"
       />
     ),
+  },
+
+  // ── Spanish Ch. 7 ──────────────────────────────────────────────────────────
+  {
+    id: 'spanish_ch7',
+    label: 'Spanish Ch. 7',
+    component: () => (
+      <SimpleRetainerForm
+        title="Chapter 7 Retainer Agreement (Spanish)"
+        fields={[
+          { key: 'Client_Name',    label: 'Client Name',    type: 'text',     placeholder: 'e.g. Jane Doe' },
+          { key: 'Attorney_Fee',   label: 'Attorney Fee',   type: 'currency',  placeholder: 'e.g. 2,433.00' },
+          { key: 'Discounted_Fee', label: 'Discounted Fee', type: 'currency',  placeholder: 'e.g. 2,333.00' },
+        ]}
+        templateFile="spanish_ch7_retainer.docx"
+        filenamePrefix="Griffin_SpanishCh7"
+      />
+    ),
+  },
+
+  // ── Ch. 13 Estimate ────────────────────────────────────────────────────────
+  {
+    id: 'ch13_estimate',
+    label: 'Ch. 13 Estimate',
+    component: Ch13EstimateForm,
   },
 
   // ── Ch. 13 Central (Consumer) ──────────────────────────────────────────────
@@ -101,38 +133,6 @@ const TABS = [
         filenamePrefix="Griffin_Ch13SouthBusiness"
       />
     ),
-  },
-
-  // ── Ch. 13 Estimate ────────────────────────────────────────────────────────
-  {
-    id: 'ch13_estimate',
-    label: 'Ch. 13 Estimate',
-    component: Ch13EstimateForm,
-  },
-
-  // ── Spanish Ch. 7 ──────────────────────────────────────────────────────────
-  {
-    id: 'spanish_ch7',
-    label: 'Spanish Ch. 7',
-    component: () => (
-      <SimpleRetainerForm
-        title="Chapter 7 Retainer Agreement (Spanish)"
-        fields={[
-          { key: 'Client_Name',    label: 'Client Name',    type: 'text',     placeholder: 'e.g. Jane Doe' },
-          { key: 'Attorney_Fee',   label: 'Attorney Fee',   type: 'currency',  placeholder: 'e.g. 2,433.00' },
-          { key: 'Discounted_Fee', label: 'Discounted Fee', type: 'currency',  placeholder: 'e.g. 2,333.00' },
-        ]}
-        templateFile="spanish_ch7_retainer.docx"
-        filenamePrefix="Griffin_SpanishCh7"
-      />
-    ),
-  },
-
-  // ── BK Fee Estimate (original component) ───────────────────────────────────
-  {
-    id: 'bk_estimate',
-    label: 'BK Fee Estimate',
-    component: BkEstimateForm,
   },
 
   // ── Civil - Hourly (Litigation) ────────────────────────────────────────────
