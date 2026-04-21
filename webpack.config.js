@@ -10,10 +10,15 @@ module.exports = {
     filename: 'bundle.js',
   },
   resolve: {
-    extensions: ['.js', '.jsx'],
+    extensions: ['.js', '.jsx', '.mjs'],
   },
   module: {
     rules: [
+      {
+        test: /pdf\.worker(\.min)?\.mjs$/,
+        type: 'asset/resource',
+        generator: { filename: 'pdf.worker.min.js' },
+      },
       {
         test: /\.(js|jsx)$/,
         exclude: /node_modules/,

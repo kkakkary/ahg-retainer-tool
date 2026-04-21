@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PdfPreview from './PdfPreview';
 
 const STAGES = [
   { label: 'Stage I — Notice',                       value: '$695.00 TOTAL FOR STAGE I' },
@@ -17,11 +18,33 @@ export default function UDRetainerForm() {
     stage: '',
   });
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewPdf, setPreviewPdf] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState(null);
 
   function handleChange(key, value) {
     setFormData(prev => ({ ...prev, [key]: value }));
+  }
+
+  async function handlePreview() {
+    setIsPreviewing(true);
+    try {
+      const selectedStage = STAGES.find(s => s.label === formData.stage);
+      const payload = {
+        Client_Name: formData.Client_Name,
+        Tenant_Name: formData.Tenant_Name,
+        Property_Address: formData.Property_Address,
+        County: formData.County,
+        Retainer_Requested: selectedStage ? selectedStage.value : '',
+      };
+      const result = await window.electronAPI.generatePreview({ formData: payload, templateFile: 'ud_retainer.docx' });
+      if (result.pdfBase64) setPreviewPdf(result.pdfBase64);
+    } catch (err) {
+      console.error('Preview error:', err);
+    } finally {
+      setIsPreviewing(false);
+    }
   }
 
   async function handleGenerate() {
@@ -65,8 +88,9 @@ export default function UDRetainerForm() {
   const labelClass = 'block text-sm font-medium text-gray-700';
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 max-w-lg space-y-6">
+    <div className="flex gap-6 items-start">
+      <div className="w-[420px] flex-shrink-0 space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 space-y-6">
         <h2 className="text-base font-semibold text-amber-800">Unlawful Detainer Retainer Agreement</h2>
 
         <div className="space-y-1">
@@ -106,11 +130,18 @@ export default function UDRetainerForm() {
         )}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handlePreview}
+          disabled={isPreviewing || isDisabled}
+          className="bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+        >
+          {isPreviewing ? 'Loading…' : 'Preview'}
+        </button>
         <button
           onClick={handleGenerate}
           disabled={isDisabled}
-          className="bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white font-semibold px-8 py-2.5 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+          className="bg-amber-800 hover:bg-amber-900 disabled:bg-amber-400 text-white font-semibold px-8 py-2.5 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
         >
           {isGenerating ? 'Generating…' : 'Generate Document'}
         </button>
@@ -120,6 +151,8 @@ export default function UDRetainerForm() {
           </span>
         )}
       </div>
+      </div>
+      <PdfPreview pdfBase64={previewPdf} />
     </div>
   );
 }
