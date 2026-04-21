@@ -63,7 +63,8 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
-      "assets/**/*"
+      "assets/**/*",
+      "!node_modules/@napi-rs/**/*"
     ],
     "directories": {
       "buildResources": "assets",
