@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PdfPreview from './PdfPreview';
 
 // Field_1–Field_24 map to the template placeholders in order.
 // Labels are what the user sees in the form.
@@ -46,6 +47,8 @@ export default function BkEstimateForm() {
   const [discountedFee, setDiscountedFee] = useState('');
   const [fees, setFees] = useState(initialFees);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewPdf, setPreviewPdf] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState(null);
 
@@ -53,30 +56,42 @@ export default function BkEstimateForm() {
   const additionalTotal = FEE_FIELDS.reduce((sum, f) => sum + parseFee(fees[f.key]), 0);
   const total = BASE_FEE + additionalTotal;
 
+  function buildPayload() {
+    const payload = {
+      Client_Name: clientName,
+      Debt: totalDebt ? `$${totalDebt}` : '',
+      Discounted_Fee: discountedFee ? `$${discountedFee}` : '',
+    };
+    for (const { key } of FEE_FIELDS) {
+      const val = fees[key].trim();
+      payload[key] = val ? `$${val}` : '';
+    }
+    payload.fee_rows = FEE_FIELDS
+      .filter(({ key }) => fees[key].trim())
+      .map(({ key }) => ({ fee_amount: `$${fees[key].trim()}` }));
+    payload.Total = `$${formatMoney(total)}`;
+    return payload;
+  }
+
+  async function handlePreview() {
+    setIsPreviewing(true);
+    try {
+      const result = await window.electronAPI.generatePreview({ formData: buildPayload(), templateFile: 'bk_estimate.docx' });
+      if (result.pdfBase64) setPreviewPdf(result.pdfBase64);
+    } catch (err) {
+      console.error('Preview error:', err);
+    } finally {
+      setIsPreviewing(false);
+    }
+  }
+
   async function handleGenerate() {
     setIsGenerating(true);
     setStatusMessage('');
     setStatusType(null);
     try {
-      // Build formData: empty fees stay '', filled fees get $ prefix, Total is calculated
-      const formData = {
-        Client_Name: clientName,
-        Debt: totalDebt ? `$${totalDebt}` : '',
-        Discounted_Fee: discountedFee ? `$${discountedFee}` : '',
-      };
-      // Individual fields for the first section
-      for (const { key } of FEE_FIELDS) {
-        const val = fees[key].trim();
-        formData[key] = val ? `$${val}` : '';
-      }
-      // fee_rows array — only filled fees, for the loop in second section
-      formData.fee_rows = FEE_FIELDS
-        .filter(({ key }) => fees[key].trim())
-        .map(({ key }) => ({ fee_amount: `$${fees[key].trim()}` }));
-      formData['Total'] = `$${formatMoney(total)}`;
-
       const result = await window.electronAPI.generateDocument({
-        formData,
+        formData: buildPayload(),
         templateFile: 'bk_estimate.docx',
         filenamePrefix: 'Griffin_BkEstimate',
       });
@@ -97,7 +112,8 @@ export default function BkEstimateForm() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="flex gap-6 items-start">
+    <div className="w-[520px] flex-shrink-0 space-y-6">
       {/* Client Name */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
         <h2 className="text-base font-semibold text-amber-800">Bankruptcy Fee Estimate</h2>
@@ -175,12 +191,18 @@ export default function BkEstimateForm() {
         </div>
       </div>
 
-      {/* Generate */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handlePreview}
+          disabled={isPreviewing || !clientName.trim()}
+          className="bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+        >
+          {isPreviewing ? 'Loading…' : 'Preview'}
+        </button>
         <button
           onClick={handleGenerate}
           disabled={isGenerating || !clientName.trim()}
-          className="bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white font-semibold px-8 py-2.5 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+          className="bg-amber-800 hover:bg-amber-900 disabled:bg-amber-400 text-white font-semibold px-8 py-2.5 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
         >
           {isGenerating ? 'Generating…' : 'Generate Document'}
         </button>
@@ -190,6 +212,8 @@ export default function BkEstimateForm() {
           </span>
         )}
       </div>
+    </div>
+    <PdfPreview pdfBase64={previewPdf} />
     </div>
   );
 }

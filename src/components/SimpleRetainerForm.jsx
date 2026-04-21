@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PdfPreview from './PdfPreview';
 
 /**
  * Generic retainer form component.
@@ -19,11 +20,30 @@ export default function SimpleRetainerForm({ title, fields, templateFile, filena
   const initialData = Object.fromEntries(fields.map((f) => [f.key, '']));
   const [formData, setFormData] = useState(initialData);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewPdf, setPreviewPdf] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState(null);
 
   function handleChange(key, value) {
     setFormData((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handlePreview() {
+    setIsPreviewing(true);
+    try {
+      const payload = {};
+      for (const { key, type } of fields) {
+        const val = formData[key];
+        payload[key] = type === 'currency' ? (val ? `$${val}` : '') : val;
+      }
+      const result = await window.electronAPI.generatePreview({ formData: payload, templateFile });
+      if (result.pdfBase64) setPreviewPdf(result.pdfBase64);
+    } catch (err) {
+      console.error('Preview error:', err);
+    } finally {
+      setIsPreviewing(false);
+    }
   }
 
   async function handleGenerate() {
@@ -68,8 +88,9 @@ export default function SimpleRetainerForm({ title, fields, templateFile, filena
   const isDisabled = isGenerating || (clientNameField ? !formData.Client_Name.trim() : false);
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 max-w-lg space-y-6">
+    <div className="flex gap-6 items-start">
+      <div className="w-[420px] flex-shrink-0 space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 space-y-6">
         <h2 className="text-base font-semibold text-amber-800">{title}</h2>
 
         {fields.map(({ key, label, type, placeholder }) => {
@@ -122,11 +143,18 @@ export default function SimpleRetainerForm({ title, fields, templateFile, filena
         })}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handlePreview}
+          disabled={isPreviewing || isDisabled}
+          className="bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+        >
+          {isPreviewing ? 'Loading…' : 'Preview'}
+        </button>
         <button
           onClick={handleGenerate}
           disabled={isDisabled}
-          className="bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white font-semibold px-8 py-2.5 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+          className="bg-amber-800 hover:bg-amber-900 disabled:bg-amber-400 text-white font-semibold px-8 py-2.5 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
         >
           {isGenerating ? 'Generating…' : 'Generate Document'}
         </button>
@@ -136,6 +164,8 @@ export default function SimpleRetainerForm({ title, fields, templateFile, filena
           </span>
         )}
       </div>
+      </div>
+      <PdfPreview pdfBase64={previewPdf} />
     </div>
   );
 }

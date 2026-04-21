@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PdfPreview from './PdfPreview';
 
 const defaultFormData = {
   Client_Name: '',
@@ -9,11 +10,30 @@ const defaultFormData = {
 export default function Ch7RetainerForm() {
   const [formData, setFormData] = useState(defaultFormData);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewPdf, setPreviewPdf] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState(null);
 
   function handleChange(field, value) {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handlePreview() {
+    setIsPreviewing(true);
+    try {
+      const payload = {
+        ...formData,
+        Attorney_Fee: formData.Attorney_Fee ? `$${formData.Attorney_Fee}` : '',
+        Discounted_Fee: formData.Discounted_Fee ? `$${formData.Discounted_Fee}` : '',
+      };
+      const result = await window.electronAPI.generatePreview({ formData: payload, templateFile: 'ch7_retainer.docx' });
+      if (result.pdfBase64) setPreviewPdf(result.pdfBase64);
+    } catch (err) {
+      console.error('Preview error:', err);
+    } finally {
+      setIsPreviewing(false);
+    }
   }
 
   async function handleGenerate() {
@@ -48,8 +68,9 @@ export default function Ch7RetainerForm() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 max-w-lg space-y-6">
+    <div className="flex gap-6 items-start">
+      <div className="w-[420px] flex-shrink-0 space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 space-y-6">
         <h2 className="text-base font-semibold text-amber-800">Chapter 7 Retainer Agreement</h2>
 
         <div className="space-y-1">
@@ -92,12 +113,18 @@ export default function Ch7RetainerForm() {
         </div>
       </div>
 
-      {/* Generate button */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handlePreview}
+          disabled={isPreviewing || !formData.Client_Name.trim()}
+          className="bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+        >
+          {isPreviewing ? 'Loading…' : 'Preview'}
+        </button>
         <button
           onClick={handleGenerate}
           disabled={isGenerating || !formData.Client_Name.trim()}
-          className="bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white font-semibold px-8 py-2.5 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+          className="bg-amber-800 hover:bg-amber-900 disabled:bg-amber-400 text-white font-semibold px-8 py-2.5 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
         >
           {isGenerating ? 'Generating…' : 'Generate Document'}
         </button>
@@ -107,6 +134,8 @@ export default function Ch7RetainerForm() {
           </span>
         )}
       </div>
+      </div>
+      <PdfPreview pdfBase64={previewPdf} />
     </div>
   );
 }

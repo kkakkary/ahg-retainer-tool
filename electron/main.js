@@ -216,62 +216,78 @@ function createWindow() {
   return win;
 }
 
+// ── Shared template filling ───────────────────────────────────────────────────
+
+function fillTemplate(zip, formData, templateFile) {
+  let xml = zip.file('word/document.xml').asText();
+
+  if (formData.Attorney_Fee)           formData.Attorney_Fee_Words           = currencyToWords(formData.Attorney_Fee);
+  if (formData.Attorney_Fee_Replenish) formData.Attorney_Fee_Replenish_Words = currencyToWords(formData.Attorney_Fee_Replenish);
+  if (formData.Retainer_Amount)        formData.Retainer_Amount_Words        = currencyToWords(formData.Retainer_Amount);
+
+  if (templateFile === 'bk_estimate.docx' || templateFile === 'ch13_estimate.docx') {
+    const feeRows = formData.fee_rows || [];
+    const startTag = '{#fee_rows}';
+    const endTag   = '{/fee_rows}';
+    const itemTag  = '{fee_amount}';
+    const si = xml.indexOf(startTag);
+    const ei = xml.indexOf(endTag);
+    if (si !== -1 && ei !== -1) {
+      const prevCloseBeforeStart = xml.lastIndexOf('</w:p>', si);
+      const startParaOpen  = prevCloseBeforeStart !== -1 ? prevCloseBeforeStart + '</w:p>'.length : 0;
+      const startParaClose = xml.indexOf('</w:p>', si) + '</w:p>'.length;
+      const prevCloseBeforeEnd = xml.lastIndexOf('</w:p>', ei);
+      const endParaOpen  = prevCloseBeforeEnd !== -1 ? prevCloseBeforeEnd + '</w:p>'.length : startParaClose;
+      const endParaClose = xml.indexOf('</w:p>', ei) + '</w:p>'.length;
+      const templatePara = xml.slice(startParaClose, endParaOpen);
+      const expanded = feeRows.map(({ fee_amount }) => templatePara.replace(itemTag, fee_amount)).join('');
+      xml = xml.slice(0, startParaOpen) + expanded + xml.slice(endParaClose);
+    }
+    for (const [key, value] of Object.entries(formData)) {
+      if (key !== 'fee_rows') xml = xml.split(`{{${key}}}`).join(value || '');
+    }
+  } else {
+    xml = normalizeSplitPlaceholders(xml, '&lt;&lt;', '&gt;&gt;');
+    xml = replacePlaceholders(xml, formData);
+  }
+
+  zip.file('word/document.xml', xml);
+  return zip.generate({ type: 'nodebuffer' });
+}
+
 // ── IPC handler ───────────────────────────────────────────────────────────────
+
+ipcMain.handle('generate-preview', async (_event, { formData, templateFile }) => {
+  try {
+    const templatePath = path.join(__dirname, '..', 'assets', templateFile);
+    const content = fs.readFileSync(templatePath, 'binary');
+    const zip = new PizZip(content);
+    const buffer = fillTemplate(zip, { ...formData }, templateFile);
+
+    let pdfBuffer;
+    try {
+      pdfBuffer = await libre.convertAsync(buffer, '.pdf', undefined);
+    } catch (convErr) {
+      if (/source file could not be loaded/i.test(convErr.message)) {
+        await new Promise((resolve) => exec('pkill -9 soffice; sleep 1', resolve));
+        pdfBuffer = await libre.convertAsync(buffer, '.pdf', undefined);
+      } else {
+        throw convErr;
+      }
+    }
+
+    return { pdfBase64: pdfBuffer.toString('base64') };
+  } catch (err) {
+    return { error: err.message };
+  }
+});
 
 ipcMain.handle('generate-document', async (_event, { formData, templateFile, filenamePrefix }) => {
   try {
     const templatePath = path.join(__dirname, '..', 'assets', templateFile);
     const content = fs.readFileSync(templatePath, 'binary');
     const zip = new PizZip(content);
-    let buffer;
-
-    let xml = zip.file('word/document.xml').asText();
-
-    // Auto-generate spelled-out currency fields
-    if (formData.Attorney_Fee)           formData.Attorney_Fee_Words           = currencyToWords(formData.Attorney_Fee);
-    if (formData.Attorney_Fee_Replenish) formData.Attorney_Fee_Replenish_Words = currencyToWords(formData.Attorney_Fee_Replenish);
-    if (formData.Retainer_Amount)        formData.Retainer_Amount_Words        = currencyToWords(formData.Retainer_Amount);
-
-    if (templateFile === 'bk_estimate.docx' || templateFile === 'ch13_estimate.docx') {
-      // Expand {#fee_rows}...{fee_amount}...{/fee_rows} loop —
-      // repeats the template paragraph once per filled fee, removing empty rows
-      const feeRows = formData.fee_rows || [];
-      const startTag = '{#fee_rows}';
-      const endTag   = '{/fee_rows}';
-      const itemTag  = '{fee_amount}';
-      const si = xml.indexOf(startTag);
-      const ei = xml.indexOf(endTag);
-      if (si !== -1 && ei !== -1) {
-        // Use </w:p> boundaries — unambiguous, won't match <w:pPr> etc.
-        const prevCloseBeforeStart = xml.lastIndexOf('</w:p>', si);
-        const startParaOpen  = prevCloseBeforeStart !== -1 ? prevCloseBeforeStart + '</w:p>'.length : 0;
-        const startParaClose = xml.indexOf('</w:p>', si) + '</w:p>'.length;
-
-        const prevCloseBeforeEnd = xml.lastIndexOf('</w:p>', ei);
-        const endParaOpen  = prevCloseBeforeEnd !== -1 ? prevCloseBeforeEnd + '</w:p>'.length : startParaClose;
-        const endParaClose = xml.indexOf('</w:p>', ei) + '</w:p>'.length;
-
-        const templatePara = xml.slice(startParaClose, endParaOpen);
-        const expanded = feeRows
-          .map(({ fee_amount }) => templatePara.replace(itemTag, fee_amount))
-          .join('');
-        xml = xml.slice(0, startParaOpen) + expanded + xml.slice(endParaClose);
-      }
-
-      // Replace all {{}} placeholders (Client_Name, Field_N, Total)
-      for (const [key, value] of Object.entries(formData)) {
-        if (key !== 'fee_rows') {
-          xml = xml.split(`{{${key}}}`).join(value || '');
-        }
-      }
-    } else {
-      // <<>> delimiters — normalize split runs then replace
-      xml = normalizeSplitPlaceholders(xml, '&lt;&lt;', '&gt;&gt;');
-      xml = replacePlaceholders(xml, formData);
-    }
-
-    zip.file('word/document.xml', xml);
-    buffer = zip.generate({ type: 'nodebuffer' });
+    const buffer = fillTemplate(zip, formData, templateFile);
 
     // ── Convert to PDF ───────────────────────────────────────────────────────
     let pdfBuffer;
