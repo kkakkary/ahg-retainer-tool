@@ -218,8 +218,16 @@ function createWindow() {
 
 // ── Shared template filling ───────────────────────────────────────────────────
 
+function todayFormatted() {
+  return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
 function fillTemplate(zip, formData, templateFile) {
   let xml = zip.file('word/document.xml').asText();
+
+  if (['ch13_central_consumer_retainer.docx', 'ch13_south_consumer_retainer.docx', 'ch13_south_business_retainer.docx'].includes(templateFile)) {
+    formData.Contract_Date = todayFormatted();
+  }
 
   if (formData.Attorney_Fee)           formData.Attorney_Fee_Words           = currencyToWords(formData.Attorney_Fee);
   if (formData.Attorney_Fee_Replenish) formData.Attorney_Fee_Replenish_Words = currencyToWords(formData.Attorney_Fee_Replenish);
