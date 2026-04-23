@@ -90,6 +90,7 @@ const TABS = [
         title="Chapter 13 Retainer Agreement — Central District (Consumer)"
         fields={[
           { key: 'Client_Name',    label: 'Client Name',    type: 'text',     placeholder: 'e.g. Jane Doe' },
+          { key: 'Contract_Date',  label: 'Contract Date',  type: 'plain',    placeholder: 'e.g. April 22, 2026' },
           { key: 'Attorney_Fee',   label: 'Attorney Fee',   type: 'currency',  placeholder: 'e.g. 4,000.00' },
           { key: 'Discounted_Fee', label: 'Discounted Fee', type: 'currency',  placeholder: 'e.g. 3,500.00' },
         ]}
@@ -108,6 +109,7 @@ const TABS = [
         title="Chapter 13 Retainer Agreement — Southern District (Consumer)"
         fields={[
           { key: 'Client_Name',    label: 'Client Name',    type: 'text',     placeholder: 'e.g. Jane Doe' },
+          { key: 'Contract_Date',  label: 'Contract Date',  type: 'plain',    placeholder: 'e.g. April 22, 2026' },
           { key: 'Attorney_Fee',   label: 'Attorney Fee',   type: 'currency',  placeholder: 'e.g. 4,000.00' },
           { key: 'Discounted_Fee', label: 'Discounted Fee', type: 'currency',  placeholder: 'e.g. 3,500.00' },
         ]}
