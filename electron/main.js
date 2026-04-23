@@ -102,6 +102,7 @@ function readConfig() {
 
 ipcMain.handle('get-version', () => app.getVersion());
 
+
 // ── Number to words ───────────────────────────────────────────────────────────
 
 function numberToWords(n) {
@@ -225,7 +226,7 @@ function todayFormatted() {
 function fillTemplate(zip, formData, templateFile) {
   let xml = zip.file('word/document.xml').asText();
 
-  if (['ch13_central_consumer_retainer.docx', 'ch13_south_consumer_retainer.docx', 'ch13_south_business_retainer.docx'].includes(templateFile)) {
+  if (['ch11_retainer.docx', 'ch13_central_consumer_retainer.docx', 'ch13_south_consumer_retainer.docx', 'ch13_south_business_retainer.docx'].includes(templateFile)) {
     formData.Contract_Date = todayFormatted();
   }
 
