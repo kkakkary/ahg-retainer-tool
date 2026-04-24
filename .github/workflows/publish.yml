@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -21,13 +22,28 @@ jobs:
       - name: Install LibreOffice
         run: brew install --cask libreoffice
 
-      - name: Publish
-        timeout-minutes: 60
+      - name: Build (no sign)
+        run: webpack --config webpack.config.js && electron-builder --mac --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Test sign one file
+        env:
           CSC_LINK: ${{ secrets.APPLE_CERTIFICATE_P12 }}
           CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: npm run publish:ci
+        run: |
+          echo "$CSC_LINK" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p "" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign -f pkcs12
+          security list-keychains -d user -s build.keychain
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+          security find-identity -v -p codesigning
+          echo "test" > /tmp/t
+          codesign --sign "Developer ID Application: KEVIN CECIL KAKKARY (8YW2S6UN69)" --force --timestamp --options runtime /tmp/t
+          echo "Basic sign passed"
+          PAKFILE=$(find release/mac-universal -name "*.pak" | head -1)
+          echo "Signing $PAKFILE"
+          codesign --sign "Developer ID Application: KEVIN CECIL KAKKARY (8YW2S6UN69)" --force --timestamp --options runtime "$PAKFILE"
+          echo "Pak sign passed"
