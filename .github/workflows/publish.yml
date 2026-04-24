@@ -45,12 +45,7 @@ jobs:
           APP="release/mac-universal/AHG Document Creation Tool.app"
           ENTITLEMENTS="node_modules/app-builder-lib/templates/entitlements.mac.plist"
           IDENTITY="Developer ID Application: KEVIN CECIL KAKKARY (8YW2S6UN69)"
-          npx @electron/osx-sign "$APP" \
-            --identity "$IDENTITY" \
-            --entitlements "$ENTITLEMENTS" \
-            --entitlements-inherit "$ENTITLEMENTS" \
-            --timestamp \
-            --hardened-runtime
+          node scripts/sign.js
           codesign --verify --deep --strict "$APP" && echo "Verification passed"
 
       - name: Notarize and publish
