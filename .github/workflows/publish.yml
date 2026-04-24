@@ -27,18 +27,22 @@ jobs:
           P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12 }}
           P12_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain-db
           echo "$P12_BASE64" | base64 --decode > /tmp/cert.p12
-          security create-keychain -p "" build.keychain
-          security set-keychain-settings -lut 21600 build.keychain
-          security unlock-keychain -p "" build.keychain
-          security import /tmp/cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign -f pkcs12
-          security list-keychains -d user -s build.keychain
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+          security create-keychain -p "" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "" $KEYCHAIN_PATH
+          security import /tmp/cert.p12 -k $KEYCHAIN_PATH -P "$P12_PASSWORD" -T /usr/bin/codesign -f pkcs12
+          security list-keychains -d user -s $KEYCHAIN_PATH $(security list-keychains -d user | tr -d '"')
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" $KEYCHAIN_PATH
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
 
       - name: Build, sign, notarize, and publish
+        timeout-minutes: 30
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_KEYCHAIN: ${{ env.KEYCHAIN_PATH }}
         run: npx webpack --config webpack.config.js && npx electron-builder --mac --publish always
