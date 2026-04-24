@@ -21,33 +21,13 @@ jobs:
       - name: Install LibreOffice
         run: brew install --cask libreoffice
 
-      - name: Import signing certificate
-        env:
-          P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12 }}
-          P12_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: |
-          echo "$P12_BASE64" | base64 --decode > /tmp/certificate.p12
-          security create-keychain -p "" build.keychain
-          security set-keychain-settings -lut 21600 build.keychain
-          security unlock-keychain -p "" build.keychain
-          security import /tmp/certificate.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign -f pkcs12
-          security list-keychains -d user -s build.keychain
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
-          curl -L "http://certs.apple.com/devidg2.der" -o /tmp/devidg2.der
-          security import /tmp/devidg2.der -k build.keychain || true
-
-      - name: Test codesign
-        run: |
-          echo "test" > /tmp/t
-          codesign --sign "Developer ID Application: KEVIN CECIL KAKKARY (8YW2S6UN69)" --force --timestamp /tmp/t
-          echo "codesign test passed"
-
       - name: Publish
-        timeout-minutes: 30
+        timeout-minutes: 60
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          DEBUG: electron-builder
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: npm run publish:ci
