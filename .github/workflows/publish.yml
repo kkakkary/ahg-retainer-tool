@@ -44,18 +44,27 @@ jobs:
         run: node scripts/sign.js
 
       - name: Notarize app
+        timeout-minutes: 30
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          echo "Verifying notarytool credentials..."
+          xcrun notarytool history \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --limit 1
+          echo "Credentials OK. Submitting for notarization..."
           APP="release/mac-universal/AHG Document Creation Tool.app"
           ditto -c -k --rsrc "$APP" /tmp/app-notarize.zip
           xcrun notarytool submit /tmp/app-notarize.zip \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
-            --wait
+            --wait \
+            --timeout 25m
           xcrun stapler staple "$APP"
           echo "Notarization and stapling complete"
 
