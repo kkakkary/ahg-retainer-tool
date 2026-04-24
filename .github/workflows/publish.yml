@@ -23,7 +23,7 @@ jobs:
         run: brew install --cask libreoffice
 
       - name: Build (no sign)
-        run: webpack --config webpack.config.js && electron-builder --mac --publish never
+        run: npx webpack --config webpack.config.js && npx electron-builder --mac --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
