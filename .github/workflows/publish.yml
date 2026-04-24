@@ -58,7 +58,7 @@ jobs:
             --limit 1
           echo "Credentials OK. Submitting for notarization..."
           APP="release/mac-universal/AHG Document Creation Tool.app"
-          ditto -c -k --rsrc "$APP" /tmp/app-notarize.zip
+          ditto -c -k --rsrc --keepParent "$APP" /tmp/app-notarize.zip
           xcrun notarytool submit /tmp/app-notarize.zip \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
