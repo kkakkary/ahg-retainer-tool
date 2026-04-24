@@ -22,55 +22,12 @@ jobs:
       - name: Install LibreOffice
         run: brew install --cask libreoffice
 
-      - name: Setup signing keychain
+      - name: Build, sign, notarize, and publish
         env:
-          P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12 }}
-          P12_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: |
-          echo "$P12_BASE64" | base64 --decode > /tmp/cert.p12
-          security create-keychain -p "" build.keychain
-          security set-keychain-settings -lut 21600 build.keychain
-          security unlock-keychain -p "" build.keychain
-          security import /tmp/cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign -f pkcs12
-          security list-keychains -d user -s build.keychain
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
-
-      - name: Build app (no signing)
-        run: npx webpack --config webpack.config.js && npx electron-builder --mac --publish never
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-
-      - name: Sign app
-        run: node scripts/sign.js
-
-      - name: Notarize app
-        timeout-minutes: 30
-        env:
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: node scripts/notarize.js
-
-      - name: Package DMG
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-        run: |
-          npx electron-builder \
-            --prepackaged "release/mac-universal/AHG Document Creation Tool.app" \
-            --mac dmg \
-            --arch universal \
-            --publish never
-
-      - name: Publish to GitHub
-        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          DMG="release/AHG Document Creation Tool-${VERSION}-universal.dmg"
-          gh release create "v${VERSION}" \
-            "$DMG" \
-            "${DMG}.blockmap" \
-            "release/latest-mac.yml" \
-            --title "${VERSION}" \
-            --target main \
-            --generate-notes
+        run: npx webpack --config webpack.config.js && npx electron-builder --mac --publish always
