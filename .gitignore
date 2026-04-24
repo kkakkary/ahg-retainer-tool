@@ -5,3 +5,6 @@ release/
 .DS_Store
 *.log
 .env
+gmail_credentials.json
+gmail_kevin_token.json
+*.token.json
