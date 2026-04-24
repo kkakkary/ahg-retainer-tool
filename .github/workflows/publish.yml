@@ -54,8 +54,7 @@ jobs:
           xcrun notarytool history \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" \
-            --limit 1
+            --team-id "$APPLE_TEAM_ID"
           echo "Credentials OK. Submitting for notarization..."
           APP="release/mac-universal/AHG Document Creation Tool.app"
           ditto -c -k --rsrc --keepParent "$APP" /tmp/app-notarize.zip
