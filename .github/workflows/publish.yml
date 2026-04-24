@@ -36,10 +36,18 @@ jobs:
           curl -L "http://certs.apple.com/devidg2.der" -o /tmp/devidg2.der
           security import /tmp/devidg2.der -k build.keychain || true
 
+      - name: Test codesign
+        run: |
+          echo "test" > /tmp/t
+          codesign --sign "Developer ID Application: KEVIN CECIL KAKKARY (8YW2S6UN69)" --force --timestamp /tmp/t
+          echo "codesign test passed"
+
       - name: Publish
+        timeout-minutes: 30
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DEBUG: electron-builder
         run: npm run publish:ci
