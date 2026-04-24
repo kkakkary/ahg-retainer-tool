@@ -52,7 +52,7 @@
       "oneClick": true,
       "perMachine": false
     },
-    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "artifactName": "AHG-Document-Creation-Tool-${version}-${arch}.${ext}",
     "mac": {
       "hardenedRuntime": true,
       "notarize": false,
