@@ -52,7 +52,6 @@
       "oneClick": true,
       "perMachine": false
     },
-    "afterSign": "scripts/notarize.js",
     "mac": {
       "hardenedRuntime": true,
       "target": {
