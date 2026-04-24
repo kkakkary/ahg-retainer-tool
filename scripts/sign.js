@@ -49,23 +49,18 @@ function findDirs(dir, test) {
   return results;
 }
 
-// Step 1: sign all individual Mach-O files (deepest first)
+// Step 1: sign all individual Mach-O files
 console.log('\n=== Step 1: Sign individual binaries ===');
 const binaries = findAll(app, isMachO);
 for (const f of binaries) sign(f);
 
-// Step 2: sign helper .app bundles (deepest first)
+// Step 2: sign helper .app bundles (deepest first, skip main app)
 console.log('\n=== Step 2: Sign helper apps ===');
-const helpers = findDirs(app, (_, e) => e.endsWith('.app'));
+const helpers = findDirs(app, (full, e) => e.endsWith('.app') && full !== app);
 for (const h of helpers.reverse()) sign(h);
 
-// Step 3: sign .framework bundles
-console.log('\n=== Step 3: Sign frameworks ===');
-const frameworks = findDirs(app, (_, e) => e.endsWith('.framework'));
-for (const fw of frameworks.reverse()) sign(fw);
-
-// Step 4: sign the main app bundle
-console.log('\n=== Step 4: Sign main app ===');
+// Step 3: sign the main app bundle
+console.log('\n=== Step 3: Sign main app ===');
 sign(app);
 
 // Verify
