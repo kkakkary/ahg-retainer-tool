@@ -54,6 +54,7 @@
     },
     "mac": {
       "hardenedRuntime": true,
+      "notarize": false,
       "target": {
         "target": "dmg",
         "arch": [
