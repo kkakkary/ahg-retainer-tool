@@ -45,11 +45,12 @@ jobs:
           APP="release/mac-universal/AHG Document Creation Tool.app"
           ENTITLEMENTS="node_modules/app-builder-lib/templates/entitlements.mac.plist"
           IDENTITY="Developer ID Application: KEVIN CECIL KAKKARY (8YW2S6UN69)"
-          find "$APP" -type f | while read f; do
-            codesign --sign "$IDENTITY" --force --timestamp --options runtime --entitlements "$ENTITLEMENTS" "$f" 2>/dev/null || true
-          done
-          codesign --sign "$IDENTITY" --force --timestamp --options runtime --entitlements "$ENTITLEMENTS" "$APP"
-          echo "Signing complete"
+          npx @electron/osx-sign "$APP" \
+            --identity "$IDENTITY" \
+            --entitlements "$ENTITLEMENTS" \
+            --entitlements-inherit "$ENTITLEMENTS" \
+            --timestamp \
+            --hardened-runtime
           codesign --verify --deep --strict "$APP" && echo "Verification passed"
 
       - name: Notarize and publish
