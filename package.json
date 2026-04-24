@@ -6,7 +6,8 @@
   "scripts": {
     "start": "concurrently \"webpack serve --config webpack.config.js\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
     "build": "webpack --config webpack.config.js && electron-builder",
-    "publish": "webpack --config webpack.config.js && electron-builder --publish always",
+    "publish": "dotenv -- sh -c 'GH_TOKEN=$(gh auth token) webpack --config webpack.config.js && electron-builder --publish always'",
+    "publish:ci": "webpack --config webpack.config.js && electron-builder --publish always",
     "dev": "concurrently \"webpack serve --config webpack.config.js\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
     "postinstall": "node scripts/rename-electron.js"
   },
@@ -29,6 +30,7 @@
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "css-loader": "^6.8.1",
+    "dotenv-cli": "^11.0.0",
     "electron": "^41.2.0",
     "electron-builder": "^26.8.1",
     "html-webpack-plugin": "^5.5.4",
@@ -58,7 +60,8 @@
         ]
       },
       "category": "public.app-category.business",
-      "icon": "assets/icon.icns"
+      "icon": "assets/icon.icns",
+      "notarize": true
     },
     "files": [
       "dist/**/*",
