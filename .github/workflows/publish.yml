@@ -35,25 +35,50 @@ jobs:
           security list-keychains -d user -s build.keychain
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
 
-      - name: Build (no signing)
-        run: npx webpack --config webpack.config.js && npx electron-builder --mac --publish never
+      - name: Build app (no signing)
+        run: npx webpack --config webpack.config.js && npx electron-builder --mac dir --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Sign app
-        run: |
-          APP="release/mac-universal/AHG Document Creation Tool.app"
-          ENTITLEMENTS="node_modules/app-builder-lib/templates/entitlements.mac.plist"
-          IDENTITY="Developer ID Application: KEVIN CECIL KAKKARY (8YW2S6UN69)"
-          node scripts/sign.js
-          codesign --verify --deep --strict "$APP" && echo "Verification passed"
+        run: node scripts/sign.js
 
-      - name: Notarize and publish
+      - name: Notarize app
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          APP="release/mac-universal/AHG Document Creation Tool.app"
+          ditto -c -k --rsrc "$APP" /tmp/app-notarize.zip
+          xcrun notarytool submit /tmp/app-notarize.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "$APP"
+          echo "Notarization and stapling complete"
+
+      - name: Package DMG
+        env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
         run: |
-          npx electron-builder --prepackaged "release/mac-universal/AHG Document Creation Tool.app" --mac dmg --publish always
+          npx electron-builder \
+            --prepackaged "release/mac-universal/AHG Document Creation Tool.app" \
+            --mac dmg \
+            --arch universal \
+            --publish never
+
+      - name: Publish to GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          DMG="release/AHG Document Creation Tool-${VERSION}-universal.dmg"
+          gh release create "v${VERSION}" \
+            "$DMG" \
+            "${DMG}.blockmap" \
+            "release/latest-mac.yml" \
+            --title "${VERSION}" \
+            --target main \
+            --generate-notes
