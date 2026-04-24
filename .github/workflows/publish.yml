@@ -16,81 +16,266 @@ jobs:
         with:
           node-version: 22
 
+      - name: Environment info
+        run: |
+          echo "=== System info ==="
+          sw_vers
+          uname -a
+          echo "Arch: $(arch)"
+          echo "Runner: $RUNNER_OS / $RUNNER_ARCH"
+          echo ""
+          echo "=== Tool versions ==="
+          node --version
+          npm --version
+          xcrun --show-sdk-path || true
+          xcrun --find codesign
+          xcrun --find notarytool
+          xcrun notarytool --version
+          codesign --version || true
+          echo ""
+          echo "=== Existing keychains ==="
+          security list-keychains -d user
+          echo ""
+          echo "=== Existing code signing identities ==="
+          security find-identity -v -p codesigning || echo "(none)"
+
       - name: Install dependencies
-        run: npm ci
+        run: |
+          echo "=== Installing npm dependencies ==="
+          npm ci
+          echo ""
+          echo "=== Installed electron-builder version ==="
+          npx electron-builder --version
+          echo ""
+          echo "=== @electron/osx-sign version ==="
+          node -p "require('@electron/osx-sign/package.json').version" 2>/dev/null || echo "(not installed at top level)"
 
       - name: Install LibreOffice
-        run: brew install --cask libreoffice
+        run: |
+          echo "=== Installing LibreOffice ==="
+          brew install --cask libreoffice
+          echo "LibreOffice installed at: $(which soffice || echo 'not in PATH')"
 
       - name: Setup signing keychain
         env:
           P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12 }}
           P12_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
+          set -x
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain-db
-          echo "$P12_BASE64" | base64 --decode > /tmp/cert.p12
-          security create-keychain -p "" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "" $KEYCHAIN_PATH
-          security import /tmp/cert.p12 -k $KEYCHAIN_PATH -P "$P12_PASSWORD" -T /usr/bin/codesign -f pkcs12
-          security list-keychains -d user -s $KEYCHAIN_PATH $(security list-keychains -d user | tr -d '"')
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" $KEYCHAIN_PATH
-          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH"
 
-      - name: Build and sign
+          echo "=== Decoding P12 ==="
+          echo "$P12_BASE64" | base64 --decode > /tmp/cert.p12
+          ls -la /tmp/cert.p12
+          file /tmp/cert.p12
+
+          echo "=== Creating keychain ==="
+          security create-keychain -p "" $KEYCHAIN_PATH
+          ls -la $KEYCHAIN_PATH
+
+          echo "=== Setting keychain settings ==="
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security show-keychain-info $KEYCHAIN_PATH || true
+
+          echo "=== Unlocking keychain ==="
+          security unlock-keychain -p "" $KEYCHAIN_PATH
+
+          echo "=== Importing P12 ==="
+          security import /tmp/cert.p12 -k $KEYCHAIN_PATH -P "$P12_PASSWORD" -T /usr/bin/codesign -f pkcs12 -v
+
+          echo "=== Before list-keychains update ==="
+          security list-keychains -d user
+
+          echo "=== Adding to keychain search list ==="
+          security list-keychains -d user -s $KEYCHAIN_PATH $(security list-keychains -d user | tr -d '"')
+
+          echo "=== After list-keychains update ==="
+          security list-keychains -d user
+
+          echo "=== Setting key partition list ==="
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" $KEYCHAIN_PATH
+
+          echo "=== Verifying cert is usable ==="
+          security find-identity -v -p codesigning $KEYCHAIN_PATH
+          security find-identity -v -p codesigning
+          security find-certificate -c "Developer ID Application" -p $KEYCHAIN_PATH | openssl x509 -noout -subject -dates -fingerprint
+
+          rm -f /tmp/cert.p12
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+          set +x
+
+      - name: Build webpack bundle
+        run: |
+          echo "=== Running webpack ==="
+          time npx webpack --config webpack.config.js
+          echo ""
+          echo "=== Webpack output ==="
+          ls -la dist/
+
+      - name: Sign with electron-builder
         timeout-minutes: 15
         env:
           CSC_KEYCHAIN: ${{ env.KEYCHAIN_PATH }}
-        run: npx webpack --config webpack.config.js && npx electron-builder --mac --publish never
+          DEBUG: electron-builder,electron-osx-sign,@electron/osx-sign*
+        run: |
+          echo "=== CSC_KEYCHAIN: $CSC_KEYCHAIN ==="
+          echo "=== Verifying keychain is still unlocked ==="
+          security show-keychain-info $CSC_KEYCHAIN || true
+          security find-identity -v -p codesigning $CSC_KEYCHAIN
+
+          echo "=== Running electron-builder ==="
+          time npx electron-builder --mac --publish never 2>&1 | tee /tmp/builder.log
+
+          echo ""
+          echo "=== Build output ==="
+          ls -la release/
+          ls -la release/mac-universal/ 2>/dev/null || true
+
+          echo ""
+          echo "=== Verifying signed app ==="
+          APP=$(find release -name "*.app" -maxdepth 3 | head -1)
+          if [ -n "$APP" ]; then
+            echo "App path: $APP"
+            codesign --verify --deep --strict --verbose=2 "$APP"
+            codesign --display --verbose=4 "$APP" 2>&1 | head -40
+            echo ""
+            echo "=== Entitlements ==="
+            codesign --display --entitlements :- "$APP" 2>&1 | head -30
+          else
+            echo "No .app found!"
+            exit 1
+          fi
+
+          echo ""
+          echo "=== DMG info ==="
+          DMG=$(ls release/*.dmg | head -1)
+          echo "DMG: $DMG"
+          ls -la "$DMG"
+          du -h "$DMG"
+          shasum -a 256 "$DMG"
+          echo "DMG_PATH=$DMG" >> $GITHUB_ENV
 
       - name: Submit for notarization
-        id: notarize
-        timeout-minutes: 10
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          DMG=$(ls release/*.dmg | head -1)
-          echo "DMG=$DMG" >> $GITHUB_ENV
-          echo "Submitting $DMG (size: $(du -h "$DMG" | cut -f1))"
-          SUBMIT_OUTPUT=$(xcrun notarytool submit "$DMG" \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" \
-            --output-format json)
-          echo "$SUBMIT_OUTPUT"
-          SUBMISSION_ID=$(echo "$SUBMIT_OUTPUT" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
-          echo "SUBMISSION_ID=$SUBMISSION_ID" >> $GITHUB_ENV
-          echo "Submitted with id: $SUBMISSION_ID"
-
-      - name: Wait for notarization
+        id: submit
         timeout-minutes: 15
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          xcrun notarytool wait "$SUBMISSION_ID" \
+          echo "=== DMG to notarize: $DMG_PATH ==="
+          ls -la "$DMG_PATH"
+          echo "Size: $(du -h "$DMG_PATH" | cut -f1)"
+          echo "SHA256: $(shasum -a 256 "$DMG_PATH")"
+
+          echo ""
+          echo "=== Checking DMG integrity ==="
+          hdiutil verify "$DMG_PATH"
+
+          echo ""
+          echo "=== Credentials check (lengths) ==="
+          echo "APPLE_ID length: ${#APPLE_ID}"
+          echo "APPLE_APP_SPECIFIC_PASSWORD length: ${#APPLE_APP_SPECIFIC_PASSWORD}"
+          echo "APPLE_TEAM_ID length: ${#APPLE_TEAM_ID}"
+
+          echo ""
+          echo "=== Checking recent notarization history ==="
+          xcrun notarytool history \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID"
+            --team-id "$APPLE_TEAM_ID" \
+            --output-format json 2>&1 | head -100 || echo "(history check failed)"
+
+          echo ""
+          echo "=== Submitting $(date -u +%FT%TZ) ==="
+          SUBMIT_OUTPUT=$(xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --output-format json 2>&1)
+          echo "=== Submit finished $(date -u +%FT%TZ) ==="
+          echo "Raw output:"
+          echo "$SUBMIT_OUTPUT"
+
+          SUBMISSION_ID=$(echo "$SUBMIT_OUTPUT" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+          echo ""
+          echo "Submission ID: $SUBMISSION_ID"
+          echo "SUBMISSION_ID=$SUBMISSION_ID" >> $GITHUB_ENV
+
+      - name: Poll notarization status
+        timeout-minutes: 20
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          echo "=== Polling submission $SUBMISSION_ID ==="
+          START=$(date +%s)
+          while true; do
+            NOW=$(date +%s)
+            ELAPSED=$((NOW - START))
+            INFO=$(xcrun notarytool info "$SUBMISSION_ID" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --output-format json 2>&1)
+            STATUS=$(echo "$INFO" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "parse_error")
+            echo "[${ELAPSED}s] status: $STATUS"
+            if [ "$STATUS" = "Accepted" ]; then
+              echo "=== Accepted after ${ELAPSED}s ==="
+              break
+            elif [ "$STATUS" = "Invalid" ] || [ "$STATUS" = "Rejected" ]; then
+              echo "=== Notarization failed: $STATUS ==="
+              echo "$INFO"
+              echo ""
+              echo "=== Fetching log ==="
+              xcrun notarytool log "$SUBMISSION_ID" \
+                --apple-id "$APPLE_ID" \
+                --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+                --team-id "$APPLE_TEAM_ID"
+              exit 1
+            elif [ "$STATUS" = "parse_error" ]; then
+              echo "Failed to parse info output:"
+              echo "$INFO"
+            fi
+            sleep 20
+          done
+
+          echo ""
+          echo "=== Notarization log ==="
           xcrun notarytool log "$SUBMISSION_ID" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" || true
 
-      - name: Staple and publish
+      - name: Staple DMG
+        run: |
+          echo "=== Stapling $DMG_PATH ==="
+          xcrun stapler staple -v "$DMG_PATH"
+          echo ""
+          echo "=== Validating staple ==="
+          xcrun stapler validate -v "$DMG_PATH"
+          echo ""
+          echo "=== Gatekeeper assessment ==="
+          spctl -a -t open --context context:primary-signature -vv "$DMG_PATH" || true
+
+      - name: Publish to GitHub Releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          xcrun stapler staple "$DMG"
-          xcrun stapler validate "$DMG"
           VERSION=$(node -p "require('./package.json').version")
           TAG="v$VERSION"
+          echo "=== Publishing $DMG_PATH to release $TAG ==="
+          ls -la release/
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$DMG" release/latest-mac.yml --clobber
+            echo "Release $TAG exists, uploading assets"
+            gh release upload "$TAG" "$DMG_PATH" release/latest-mac.yml --clobber
           else
-            gh release create "$TAG" "$DMG" release/latest-mac.yml \
+            echo "Creating release $TAG"
+            gh release create "$TAG" "$DMG_PATH" release/latest-mac.yml \
               --title "$TAG" --notes "Release $TAG"
           fi
+          echo ""
+          echo "=== Release URL ==="
+          gh release view "$TAG" --json url --jq .url
