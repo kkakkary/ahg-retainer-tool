@@ -7,9 +7,17 @@ const entitlements = path.resolve('node_modules/app-builder-lib/templates/entitl
 const identity = 'Developer ID Application: KEVIN CECIL KAKKARY (8YW2S6UN69)';
 const tsServer = 'http://timestamp.apple.com/ts01';
 
-function sign(target, extra = '') {
-  const cmd = `codesign --sign "${identity}" --force --timestamp="${tsServer}" --options runtime --entitlements "${entitlements}" ${extra} "${target}"`;
+function sign(target) {
+  const cmd = `codesign --sign "${identity}" --force --timestamp="${tsServer}" --options runtime --entitlements "${entitlements}" "${target}"`;
   console.log(`Signing: ${path.relative(process.cwd(), target)}`);
+  execSync(cmd, { stdio: 'inherit' });
+}
+
+function sealBundle(target) {
+  // Sign bundle seal only — no --options runtime, no --entitlements.
+  // This creates CodeResources without re-signing the executables inside.
+  const cmd = `codesign --sign "${identity}" --force --timestamp="${tsServer}" "${target}"`;
+  console.log(`Sealing: ${path.relative(process.cwd(), target)}`);
   execSync(cmd, { stdio: 'inherit' });
 }
 
@@ -49,18 +57,24 @@ function findDirs(dir, test) {
   return results;
 }
 
-// Step 1: sign all individual Mach-O files
+// Step 1: sign all individual Mach-O files (deepest first)
 console.log('\n=== Step 1: Sign individual binaries ===');
 const binaries = findAll(app, isMachO);
 for (const f of binaries) sign(f);
 
-// Step 2: sign helper .app bundles (deepest first, skip main app)
-console.log('\n=== Step 2: Sign helper apps ===');
+// Step 2: seal .framework bundles (deepest first, after contents are signed)
+// Uses sealBundle — does NOT re-sign the executables inside the framework.
+console.log('\n=== Step 2: Seal framework bundles ===');
+const frameworks = findDirs(app, (_, e) => e.endsWith('.framework'));
+for (const fw of frameworks.reverse()) sealBundle(fw);
+
+// Step 3: sign helper .app bundles (deepest first, skip main app)
+console.log('\n=== Step 3: Sign helper apps ===');
 const helpers = findDirs(app, (full, e) => e.endsWith('.app') && full !== app);
 for (const h of helpers.reverse()) sign(h);
 
-// Step 3: sign the main app bundle
-console.log('\n=== Step 3: Sign main app ===');
+// Step 4: sign the main app bundle
+console.log('\n=== Step 4: Sign main app ===');
 sign(app);
 
 // Verify
