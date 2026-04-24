@@ -34,7 +34,7 @@ jobs:
           security list-keychains -d user -s build.keychain
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
           curl -L "http://certs.apple.com/devidg2.der" -o /tmp/devidg2.der
-          security import /tmp/devidg2.der -k build.keychain
+          security import /tmp/devidg2.der -k build.keychain || true
 
       - name: Publish
         env:
