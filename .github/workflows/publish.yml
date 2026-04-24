@@ -37,12 +37,60 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" $KEYCHAIN_PATH
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
 
-      - name: Build, sign, notarize, and publish
-        timeout-minutes: 30
+      - name: Build and sign
+        timeout-minutes: 15
+        env:
+          CSC_KEYCHAIN: ${{ env.KEYCHAIN_PATH }}
+        run: npx webpack --config webpack.config.js && npx electron-builder --mac --publish never
+
+      - name: Submit for notarization
+        id: notarize
+        timeout-minutes: 10
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          DMG=$(ls release/*.dmg | head -1)
+          echo "DMG=$DMG" >> $GITHUB_ENV
+          echo "Submitting $DMG (size: $(du -h "$DMG" | cut -f1))"
+          SUBMIT_OUTPUT=$(xcrun notarytool submit "$DMG" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --output-format json)
+          echo "$SUBMIT_OUTPUT"
+          SUBMISSION_ID=$(echo "$SUBMIT_OUTPUT" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+          echo "SUBMISSION_ID=$SUBMISSION_ID" >> $GITHUB_ENV
+          echo "Submitted with id: $SUBMISSION_ID"
+
+      - name: Wait for notarization
+        timeout-minutes: 15
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcrun notarytool wait "$SUBMISSION_ID" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID"
+          xcrun notarytool log "$SUBMISSION_ID" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" || true
+
+      - name: Staple and publish
+        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_KEYCHAIN: ${{ env.KEYCHAIN_PATH }}
-        run: npx webpack --config webpack.config.js && npx electron-builder --mac --publish always
+        run: |
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$DMG" release/latest-mac.yml --clobber
+          else
+            gh release create "$TAG" "$DMG" release/latest-mac.yml \
+              --title "$TAG" --notes "Release $TAG"
+          fi
