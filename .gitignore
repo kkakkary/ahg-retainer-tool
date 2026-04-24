@@ -4,3 +4,4 @@ release/
 .npm-cache/
 .DS_Store
 *.log
+.env
