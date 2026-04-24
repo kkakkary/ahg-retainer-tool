@@ -44,6 +44,10 @@ jobs:
           codesign --sign "Developer ID Application: KEVIN CECIL KAKKARY (8YW2S6UN69)" --force --timestamp --options runtime /tmp/t
           echo "Basic sign passed"
           PAKFILE=$(find release/mac-universal -name "*.pak" | head -1)
-          echo "Signing $PAKFILE"
-          codesign --sign "Developer ID Application: KEVIN CECIL KAKKARY (8YW2S6UN69)" --force --timestamp --options runtime "$PAKFILE"
-          echo "Pak sign passed"
+          ENTITLEMENTS=$(find . -path "*/app-builder-lib/templates/entitlements.mac.plist" | head -1)
+          echo "Signing $PAKFILE with entitlements $ENTITLEMENTS"
+          codesign --sign "Developer ID Application: KEVIN CECIL KAKKARY (8YW2S6UN69)" --force --timestamp --options runtime --entitlements "$ENTITLEMENTS" "$PAKFILE"
+          echo "Pak sign with entitlements passed"
+          echo "Now signing full app bundle..."
+          codesign --sign "Developer ID Application: KEVIN CECIL KAKKARY (8YW2S6UN69)" --force --timestamp --options runtime --entitlements "$ENTITLEMENTS" "release/mac-universal/AHG Document Creation Tool.app"
+          echo "Full app bundle sign passed"
