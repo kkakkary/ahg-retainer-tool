@@ -8,3 +8,6 @@ release/
 gmail_credentials.json
 gmail_kevin_token.json
 *.token.json
+CLAUDE.md
+main.js
+.claude/
