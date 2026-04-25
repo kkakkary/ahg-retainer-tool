@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Ch7RetainerForm from './components/Ch7RetainerForm';
 import BkEstimateForm from './components/BkEstimateForm';
 import Ch13EstimateForm from './components/Ch13EstimateForm';
@@ -25,7 +25,7 @@ const TABS = [
   {
     id: 'biz_ch7',
     label: 'Business Ch7',
-    component: () => (
+    component: (props) => (
       <SimpleRetainerForm
         title="Business Chapter 7 Retainer Agreement"
         fields={[
@@ -35,6 +35,7 @@ const TABS = [
         ]}
         templateFile="biz_ch7_retainer.docx"
         filenamePrefix="Griffin_BizCh7Retainer"
+        {...props}
       />
     ),
   },
@@ -43,7 +44,7 @@ const TABS = [
   {
     id: 'ch11',
     label: 'Ch. 11 Retainer',
-    component: () => (
+    component: (props) => (
       <SimpleRetainerForm
         title="Chapter 11 Retainer Agreement"
         fields={[
@@ -52,6 +53,7 @@ const TABS = [
         ]}
         templateFile="ch11_retainer.docx"
         filenamePrefix="Griffin_Ch11Retainer"
+      {...props}
       />
     ),
   },
@@ -60,7 +62,7 @@ const TABS = [
   {
     id: 'spanish_ch7',
     label: 'Spanish Ch. 7',
-    component: () => (
+    component: (props) => (
       <SimpleRetainerForm
         title="Chapter 7 Retainer Agreement (Spanish)"
         fields={[
@@ -70,6 +72,7 @@ const TABS = [
         ]}
         templateFile="spanish_ch7_retainer.docx"
         filenamePrefix="Griffin_SpanishCh7"
+      {...props}
       />
     ),
   },
@@ -85,7 +88,7 @@ const TABS = [
   {
     id: 'ch13_central_consumer',
     label: 'Ch. 13 Central (Consumer)',
-    component: () => (
+    component: (props) => (
       <SimpleRetainerForm
         title="Chapter 13 Retainer Agreement — Central District (Consumer)"
         fields={[
@@ -95,6 +98,7 @@ const TABS = [
         ]}
         templateFile="ch13_central_consumer_retainer.docx"
         filenamePrefix="Griffin_Ch13CentralConsumer"
+      {...props}
       />
     ),
   },
@@ -103,7 +107,7 @@ const TABS = [
   {
     id: 'ch13_south_consumer',
     label: 'Ch. 13 South (Consumer)',
-    component: () => (
+    component: (props) => (
       <SimpleRetainerForm
         title="Chapter 13 Retainer Agreement — Southern District (Consumer)"
         fields={[
@@ -113,6 +117,7 @@ const TABS = [
         ]}
         templateFile="ch13_south_consumer_retainer.docx"
         filenamePrefix="Griffin_Ch13SouthConsumer"
+      {...props}
       />
     ),
   },
@@ -121,7 +126,7 @@ const TABS = [
   {
     id: 'ch13_south_business',
     label: 'Ch. 13 South (Business)',
-    component: () => (
+    component: (props) => (
       <SimpleRetainerForm
         title="Chapter 13 Retainer Agreement — Southern District (Business)"
         fields={[
@@ -131,6 +136,7 @@ const TABS = [
         ]}
         templateFile="ch13_south_business_retainer.docx"
         filenamePrefix="Griffin_Ch13SouthBusiness"
+      {...props}
       />
     ),
   },
@@ -139,7 +145,7 @@ const TABS = [
   {
     id: 'civil_hourly_lit',
     label: 'Civil - Hourly (Lit)',
-    component: () => (
+    component: (props) => (
       <SimpleRetainerForm
         title="Civil Retainer Agreement — Hourly (Litigation)"
         fields={[
@@ -153,6 +159,7 @@ const TABS = [
         ]}
         templateFile="civil_hourly_lit_retainer.docx"
         filenamePrefix="Griffin_CivilHourlyLit"
+      {...props}
       />
     ),
   },
@@ -161,7 +168,7 @@ const TABS = [
   {
     id: 'civil_hourly_nonlit',
     label: 'Civil - Hourly (Non-Lit)',
-    component: () => (
+    component: (props) => (
       <SimpleRetainerForm
         title="Civil Retainer Agreement — Hourly (Non-Litigation)"
         fields={[
@@ -175,6 +182,7 @@ const TABS = [
         ]}
         templateFile="civil_hourly_nonlit_retainer.docx"
         filenamePrefix="Griffin_CivilHourlyNonLit"
+      {...props}
       />
     ),
   },
@@ -183,7 +191,7 @@ const TABS = [
   {
     id: 'civil_flat_fee',
     label: 'Civil - Flat Fee',
-    component: () => (
+    component: (props) => (
       <SimpleRetainerForm
         title="Civil Retainer Agreement — Flat Fee"
         fields={[
@@ -196,6 +204,7 @@ const TABS = [
         ]}
         templateFile="civil_flat_fee_retainer.docx"
         filenamePrefix="Griffin_CivilFlatFee"
+      {...props}
       />
     ),
   },
@@ -204,7 +213,7 @@ const TABS = [
   {
     id: 'civil_contingency',
     label: 'Civil - Contingency',
-    component: () => (
+    component: (props) => (
       <SimpleRetainerForm
         title="Civil Retainer Agreement — Contingency"
         fields={[
@@ -215,6 +224,7 @@ const TABS = [
         ]}
         templateFile="civil_contingency_retainer.docx"
         filenamePrefix="Griffin_CivilContingency"
+      {...props}
       />
     ),
   },
@@ -223,7 +233,7 @@ const TABS = [
   {
     id: 'family_law',
     label: 'Family Law',
-    component: () => (
+    component: (props) => (
       <SimpleRetainerForm
         title="Family Law Retainer Agreement"
         fields={[
@@ -236,6 +246,7 @@ const TABS = [
         ]}
         templateFile="family_law_retainer.docx"
         filenamePrefix="Griffin_FamilyLaw"
+      {...props}
       />
     ),
   },
@@ -251,7 +262,7 @@ const TABS = [
   {
     id: 'probate',
     label: 'Probate',
-    component: () => (
+    component: (props) => (
       <SimpleRetainerForm
         title="Probate Retainer Agreement"
         fields={[
@@ -260,6 +271,7 @@ const TABS = [
         ]}
         templateFile="probate_retainer.docx"
         filenamePrefix="Griffin_Probate"
+      {...props}
       />
     ),
   },
@@ -268,47 +280,169 @@ const TABS = [
 export default function App() {
   const [activeTab, setActiveTab] = useState(TABS[0].id);
   const [version, setVersion] = useState('');
+  const [formStates, setFormStates] = useState({});
+  const [history, setHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     window.electronAPI.getVersion().then(setVersion);
+    window.electronAPI.getHistory().then(setHistory);
   }, []);
 
-  const ActiveForm = TABS.find((t) => t.id === activeTab).component;
+  useEffect(() => {
+    const label = TABS.find((t) => t.id === activeTab)?.label || '';
+    window.electronAPI.setTitle(`AHG Document Creation Tool — ${label}`);
+  }, [activeTab]);
+
+  const updateFormState = (tabId, data) => {
+    setFormStates((prev) => ({ ...prev, [tabId]: data }));
+  };
+
+  const refreshHistory = () => {
+    window.electronAPI.getHistory().then(setHistory);
+  };
+
+  const tabBarRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = tabBarRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, [checkScroll]);
+
+  const scrollTabs = (dir) => {
+    const el = tabBarRef.current;
+    if (el) el.scrollBy({ left: dir * 200, behavior: 'smooth' });
+  };
+
+  const activeTabConfig = TABS.find((t) => t.id === activeTab);
+  const ActiveForm = activeTabConfig.component;
 
   return (
-    <div className="flex flex-col h-screen bg-amber-50">
+    <div className="flex flex-col h-screen bg-stone-200">
       {/* Header */}
-      <header className="bg-white border-b border-amber-200 px-6 py-3 flex items-center gap-4 shadow-sm flex-shrink-0">
-        <img src={logo} alt="Griffin Law Logo" className="h-10 w-auto" />
+      <header className="bg-slate-800 px-6 py-3 flex items-center gap-4 shadow-md flex-shrink-0">
+        <img src={logo} alt="Griffin Law Logo" className="h-10 w-auto brightness-200" />
         <div className="flex flex-col">
-          <span className="text-base font-bold text-amber-800 leading-tight">AHG Document Creation Tool</span>
-          <span className="text-xs text-amber-600">Law Office of Andrew H. Griffin, III, APC</span>
+          <span className="text-base font-bold text-white leading-tight">AHG Document Creation Tool</span>
+          <span className="text-xs text-slate-300">Law Office of Andrew H. Griffin, III, APC</span>
         </div>
-        {version && (
-          <span className="ml-auto text-xs text-gray-400">v{version}</span>
-        )}
+        <div className="ml-auto flex items-center gap-3">
+          <button
+            onClick={() => { setShowHistory(!showHistory); refreshHistory(); }}
+            className="text-xs text-slate-300 hover:text-white transition-colors cursor-pointer"
+          >
+            {showHistory ? 'Hide History' : 'Recent Documents'}
+          </button>
+          {version && (
+            <span className="text-xs text-slate-400">v{version}</span>
+          )}
+        </div>
       </header>
 
-      {/* Tab bar — horizontally scrollable when tabs overflow */}
-      <div className="bg-white border-b border-amber-200 px-6 flex gap-1 flex-shrink-0 overflow-x-auto">
-        {TABS.map((tab) => (
+      {/* Tab bar — horizontally scrollable with arrow indicators */}
+      <div className="bg-slate-700 flex-shrink-0 flex items-center relative">
+        {canScrollLeft && (
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-shrink-0 whitespace-nowrap px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab.id
-                ? 'border-amber-600 text-amber-700'
-                : 'border-transparent text-gray-500 hover:text-amber-700 hover:border-amber-300'
-            }`}
+            onClick={() => scrollTabs(-1)}
+            aria-label="Scroll tabs left"
+            className="absolute left-0 z-10 h-full px-2 bg-gradient-to-r from-slate-700 via-slate-700 to-transparent text-slate-400 hover:text-white"
           >
-            {tab.label}
+            &#8249;
           </button>
-        ))}
+        )}
+        <div
+          ref={tabBarRef}
+          onScroll={checkScroll}
+          className="flex gap-1 px-6 overflow-x-auto scrollbar-hide"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-shrink-0 whitespace-nowrap px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? 'border-amber-400 text-white'
+                  : 'border-transparent text-slate-400 hover:text-white hover:border-slate-500'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {canScrollRight && (
+          <button
+            onClick={() => scrollTabs(1)}
+            aria-label="Scroll tabs right"
+            className="absolute right-0 z-10 h-full px-2 bg-gradient-to-l from-slate-700 via-slate-700 to-transparent text-slate-400 hover:text-white"
+          >
+            &#8250;
+          </button>
+        )}
+      </div>
+
+      {/* History panel */}
+      <div className={`bg-white border-b border-stone-200 px-6 flex-shrink-0 transition-all duration-200 ease-in-out overflow-hidden ${showHistory ? 'max-h-56 py-3 opacity-100' : 'max-h-0 py-0 opacity-0 border-b-0'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Recent Documents</span>
+            {history.length > 0 && (
+              <button
+                onClick={() => { if (window.confirm('Clear all document history?')) { window.electronAPI.clearHistory(); setHistory([]); } }}
+                className="text-xs text-gray-400 hover:text-red-500 cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {history.length === 0 ? (
+            <p className="text-xs text-gray-400">No documents generated yet.</p>
+          ) : (
+            <div className="space-y-1">
+              {history.map((item, i) => (
+                <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-gray-50 last:border-0">
+                  <div className="flex gap-3">
+                    <span className="font-medium text-gray-700">{item.clientName}</span>
+                    <span className="text-gray-400">{item.formType}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-400">{new Date(item.timestamp).toLocaleDateString()}</span>
+                    <button
+                      onClick={() => window.electronAPI.openFile(item.filePath)}
+                      className="text-slate-600 hover:text-slate-800 underline cursor-pointer"
+                    >
+                      Open
+                    </button>
+                    <button
+                      onClick={() => window.electronAPI.showInFolder(item.filePath)}
+                      className="text-gray-400 hover:text-gray-600 underline cursor-pointer"
+                    >
+                      Reveal
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
       </div>
 
       {/* Active form */}
       <div className="flex-1 overflow-y-auto p-8">
-        <ActiveForm />
+        <ActiveForm
+          key={activeTab}
+          savedFormData={formStates[activeTab]}
+          onFormChange={(data) => updateFormState(activeTab, data)}
+          onGenerated={refreshHistory}
+        />
       </div>
     </div>
   );

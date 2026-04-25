@@ -102,6 +102,32 @@ function readConfig() {
 
 ipcMain.handle('get-version', () => app.getVersion());
 
+ipcMain.handle('set-title', (_event, title) => {
+  const win = BrowserWindow.getFocusedWindow();
+  if (win) win.setTitle(title);
+});
+
+ipcMain.handle('show-in-folder', (_event, filePath) => {
+  shell.showItemInFolder(filePath);
+});
+
+ipcMain.handle('open-file', async (_event, filePath) => {
+  if (!fs.existsSync(filePath)) {
+    dialog.showMessageBox({ type: 'warning', title: 'File Not Found', message: `This file has been moved or deleted:\n${filePath}` });
+    return;
+  }
+  shell.openPath(filePath);
+});
+
+ipcMain.handle('get-history', () => {
+  return (readConfig().history || []);
+});
+
+ipcMain.handle('clear-history', () => {
+  const config = readConfig();
+  config.history = [];
+  fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2));
+});
 
 // ── Number to words ───────────────────────────────────────────────────────────
 
@@ -403,6 +429,18 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
 
     fs.writeFileSync(filePath, pdfBuffer);
     shell.openPath(filePath);
+
+    const config = readConfig();
+    const history = config.history || [];
+    history.unshift({
+      clientName: formData.Client_Name || 'Unknown',
+      formType: formLabel,
+      filePath,
+      timestamp: new Date().toISOString(),
+    });
+    config.history = history.slice(0, 50);
+    fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2));
+
     return { success: true, filePath };
   } catch (err) {
     // Docxtemplater wraps errors — unwrap for a useful message

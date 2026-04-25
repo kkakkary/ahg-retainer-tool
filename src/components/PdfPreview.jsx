@@ -206,7 +206,7 @@ export default function PdfPreview({ pdfBase64 }) {
           onChange={handleQueryChange}
           onKeyDown={handleKeyDown}
           placeholder="Find in document… (⌘F)"
-          className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-amber-400"
+          className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-slate-400"
         />
         {matchInfo !== null && (
           <span className="text-xs text-gray-400 whitespace-nowrap">
