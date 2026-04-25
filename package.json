@@ -56,12 +56,16 @@
     "mac": {
       "hardenedRuntime": true,
       "notarize": false,
-      "target": {
-        "target": "dmg",
-        "arch": [
-          "universal"
-        ]
-      },
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["universal"]
+        },
+        {
+          "target": "zip",
+          "arch": ["universal"]
+        }
+      ],
       "category": "public.app-category.business",
       "icon": "assets/icon.icns"
     },

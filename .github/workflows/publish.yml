@@ -159,6 +159,12 @@ jobs:
           du -h "$DMG"
           shasum -a 256 "$DMG"
           echo "DMG_PATH=$DMG" >> $GITHUB_ENV
+          echo ""
+          echo "=== ZIP info ==="
+          ZIP=$(ls release/*.zip | head -1)
+          echo "ZIP: $ZIP"
+          ls -la "$ZIP"
+          echo "ZIP_PATH=$ZIP" >> $GITHUB_ENV
 
       # ── Always upload the signed DMG and yml as artifacts. If notarization
       #    stalls on Apple's side and we abandon the run, the staple-and-publish
@@ -169,6 +175,7 @@ jobs:
           name: signed-build
           path: |
             release/*.dmg
+            release/*.zip
             release/latest-mac.yml
           retention-days: 14
           if-no-files-found: error
@@ -349,10 +356,10 @@ jobs:
           ls -la release/
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG exists, uploading assets"
-            gh release upload "$TAG" "$DMG_PATH" release/latest-mac.yml --clobber
+            gh release upload "$TAG" "$DMG_PATH" "$ZIP_PATH" release/latest-mac.yml --clobber
           else
             echo "Creating release $TAG"
-            gh release create "$TAG" "$DMG_PATH" release/latest-mac.yml \
+            gh release create "$TAG" "$DMG_PATH" "$ZIP_PATH" release/latest-mac.yml \
               --title "$TAG" --notes "Release $TAG"
           fi
           echo ""
