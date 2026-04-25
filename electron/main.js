@@ -438,6 +438,7 @@ app.whenReady().then(() => {
   // Auto-update — only runs in packaged app, not dev
   if (app.isPackaged) {
     autoUpdater.checkForUpdatesAndNotify();
+    setInterval(() => autoUpdater.checkForUpdatesAndNotify(), 60 * 60 * 1000);
 
     autoUpdater.on('update-available', () => {
       dialog.showMessageBox({
