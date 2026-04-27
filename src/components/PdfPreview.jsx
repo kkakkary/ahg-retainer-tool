@@ -189,16 +189,16 @@ export default function PdfPreview({ pdfBase64 }) {
 
   if (!pdfBase64) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-100 rounded-xl border border-gray-200 text-gray-400 text-sm" style={{ minHeight: '400px' }}>
+      <div className="flex-1 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 text-sm" style={{ minHeight: '400px' }}>
         Click "Preview" to see the document
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-100 rounded-xl border border-gray-200 shadow-sm overflow-hidden" style={{ maxHeight: 'calc(100vh - 9rem)' }}>
+    <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden" style={{ maxHeight: 'calc(100vh - 9rem)' }}>
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200 bg-white flex-shrink-0">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
         <input
           ref={inputRef}
           type="text"
@@ -206,21 +206,21 @@ export default function PdfPreview({ pdfBase64 }) {
           onChange={handleQueryChange}
           onKeyDown={handleKeyDown}
           placeholder="Find in document… (⌘F)"
-          className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-slate-400"
+          className="flex-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-slate-400"
         />
         {matchInfo !== null && (
           <span className="text-xs text-gray-400 whitespace-nowrap">
             {matchInfo.total === 0 ? 'No results' : `${matchInfo.current} / ${matchInfo.total}`}
           </span>
         )}
-        <button onClick={() => navigate(-1)} disabled={!matchInfo?.total} className="text-gray-500 hover:text-gray-800 disabled:text-gray-300 text-sm px-1">↑</button>
-        <button onClick={() => navigate(1)}  disabled={!matchInfo?.total} className="text-gray-500 hover:text-gray-800 disabled:text-gray-300 text-sm px-1">↓</button>
+        <button onClick={() => navigate(-1)} disabled={!matchInfo?.total} className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100 disabled:text-gray-300 dark:disabled:text-gray-600 text-sm px-1" aria-label="Previous match">↑</button>
+        <button onClick={() => navigate(1)}  disabled={!matchInfo?.total} className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100 disabled:text-gray-300 dark:disabled:text-gray-600 text-sm px-1" aria-label="Next match">↓</button>
 
-        <div className="w-px h-4 bg-gray-300 mx-1" />
+        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
 
-        <button onClick={zoomOut} disabled={scale === SCALE_STEPS[0]}                  className="text-gray-500 hover:text-gray-800 disabled:text-gray-300 text-base font-bold px-1">−</button>
-        <span className="text-xs text-gray-500 w-10 text-center">{Math.round(scale * 100)}%</span>
-        <button onClick={zoomIn}  disabled={scale === SCALE_STEPS[SCALE_STEPS.length - 1]} className="text-gray-500 hover:text-gray-800 disabled:text-gray-300 text-base font-bold px-1">+</button>
+        <button onClick={zoomOut} disabled={scale === SCALE_STEPS[0]}                  className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100 disabled:text-gray-300 dark:disabled:text-gray-600 text-base font-bold px-1" aria-label="Zoom out">−</button>
+        <span className="text-xs text-gray-500 dark:text-gray-400 w-10 text-center">{Math.round(scale * 100)}%</span>
+        <button onClick={zoomIn}  disabled={scale === SCALE_STEPS[SCALE_STEPS.length - 1]} className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100 disabled:text-gray-300 dark:disabled:text-gray-600 text-base font-bold px-1" aria-label="Zoom in">+</button>
       </div>
 
       {/* PDF pages */}

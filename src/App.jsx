@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Ch7RetainerForm from './components/Ch7RetainerForm';
-import BkEstimateForm from './components/BkEstimateForm';
-import Ch13EstimateForm from './components/Ch13EstimateForm';
+// Ch7 uses SimpleRetainerForm inline (like all other simple forms)
+import EstimateForm from './components/EstimateForm';
 import SimpleRetainerForm from './components/SimpleRetainerForm';
 import UDRetainerForm from './components/UDRetainerForm';
 import logo from './assets/logo.png';
@@ -11,14 +10,36 @@ const TABS = [
   {
     id: 'bk_estimate',
     label: 'BK Fee Estimate',
-    component: BkEstimateForm,
+    component: (props) => (
+      <EstimateForm
+        title="Bankruptcy Fee Estimate"
+        baseFee={2333.00}
+        baseFeeLabel="Base Fee"
+        templateFile="bk_estimate.docx"
+        filenamePrefix="Griffin_BkEstimate"
+        showDiscountedFee
+        {...props}
+      />
+    ),
   },
 
   // ── Ch. 7 Retainer (original component) ───────────────────────────────────
   {
     id: 'ch7',
     label: 'Ch. 7 Retainer',
-    component: Ch7RetainerForm,
+    component: (props) => (
+      <SimpleRetainerForm
+        title="Chapter 7 Retainer Agreement"
+        fields={[
+          { key: 'Client_Name',    label: 'Client Name',    type: 'text',     placeholder: 'e.g. Jane Doe' },
+          { key: 'Attorney_Fee',   label: 'Attorney Fee',   type: 'currency', placeholder: 'e.g. 2,433.00' },
+          { key: 'Discounted_Fee', label: 'Discounted Fee', type: 'currency', placeholder: 'e.g. 2,333.00' },
+        ]}
+        templateFile="ch7_retainer.docx"
+        filenamePrefix="Griffin_Ch7Retainer"
+        {...props}
+      />
+    ),
   },
 
   // ── Business Ch7 ───────────────────────────────────────────────────────────
@@ -35,6 +56,7 @@ const TABS = [
         ]}
         templateFile="biz_ch7_retainer.docx"
         filenamePrefix="Griffin_BizCh7Retainer"
+        isBusinessName
         {...props}
       />
     ),
@@ -81,7 +103,17 @@ const TABS = [
   {
     id: 'ch13_estimate',
     label: 'Ch. 13 Estimate',
-    component: Ch13EstimateForm,
+    component: (props) => (
+      <EstimateForm
+        title="Chapter 13 Estimate — Central District"
+        baseFee={1995.00}
+        baseFeeLabel="Base Fee"
+        templateFile="ch13_estimate.docx"
+        filenamePrefix="Griffin_Ch13Estimate"
+        showDiscountedFee={false}
+        {...props}
+      />
+    ),
   },
 
   // ── Ch. 13 Central (Consumer) ──────────────────────────────────────────────
@@ -136,6 +168,7 @@ const TABS = [
         ]}
         templateFile="ch13_south_business_retainer.docx"
         filenamePrefix="Griffin_Ch13SouthBusiness"
+        isBusinessName
       {...props}
       />
     ),
@@ -283,11 +316,18 @@ export default function App() {
   const [formStates, setFormStates] = useState({});
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     window.electronAPI.getVersion().then(setVersion);
     window.electronAPI.getHistory().then(setHistory);
+    window.electronAPI.getConfig('darkMode').then((v) => { if (v) setDarkMode(true); });
   }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+    window.electronAPI.setConfig('darkMode', darkMode);
+  }, [darkMode]);
 
   useEffect(() => {
     const label = TABS.find((t) => t.id === activeTab)?.label || '';
@@ -328,7 +368,7 @@ export default function App() {
   const ActiveForm = activeTabConfig.component;
 
   return (
-    <div className="flex flex-col h-screen bg-stone-200">
+    <div className="flex flex-col h-screen bg-stone-200 dark:bg-gray-900">
       {/* Header */}
       <header className="bg-slate-800 px-6 py-3 flex items-center gap-4 shadow-md flex-shrink-0">
         <img src={logo} alt="Griffin Law Logo" className="h-10 w-auto brightness-200" />
@@ -342,6 +382,13 @@ export default function App() {
             className="text-xs text-slate-300 hover:text-white transition-colors cursor-pointer"
           >
             {showHistory ? 'Hide History' : 'Recent Documents'}
+          </button>
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            className="text-xs text-slate-300 hover:text-white transition-colors cursor-pointer"
+            aria-label="Toggle dark mode"
+          >
+            {darkMode ? '☀ Light' : '☾ Dark'}
           </button>
           {version && (
             <span className="text-xs text-slate-400">v{version}</span>
@@ -392,7 +439,7 @@ export default function App() {
       </div>
 
       {/* History panel */}
-      <div className={`bg-white border-b border-stone-200 px-6 flex-shrink-0 transition-all duration-200 ease-in-out overflow-hidden ${showHistory ? 'max-h-56 py-3 opacity-100' : 'max-h-0 py-0 opacity-0 border-b-0'}`}>
+      <div className={`bg-white dark:bg-gray-800 border-b border-stone-200 dark:border-gray-700 px-6 flex-shrink-0 transition-all duration-200 ease-in-out overflow-hidden ${showHistory ? 'max-h-56 py-3 opacity-100' : 'max-h-0 py-0 opacity-0 border-b-0'}`}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Recent Documents</span>
             {history.length > 0 && (
@@ -409,16 +456,16 @@ export default function App() {
           ) : (
             <div className="space-y-1">
               {history.map((item, i) => (
-                <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-gray-50 last:border-0">
+                <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 dark:border-gray-700 last:border-0">
                   <div className="flex gap-3">
-                    <span className="font-medium text-gray-700">{item.clientName}</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-200">{item.clientName}</span>
                     <span className="text-gray-400">{item.formType}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-gray-400">{new Date(item.timestamp).toLocaleDateString()}</span>
                     <button
                       onClick={() => window.electronAPI.openFile(item.filePath)}
-                      className="text-slate-600 hover:text-slate-800 underline cursor-pointer"
+                      className="text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 underline cursor-pointer"
                     >
                       Open
                     </button>

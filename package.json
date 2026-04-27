@@ -43,6 +43,7 @@
     "webpack-dev-server": "^5.2.3"
   },
   "build": {
+    "asar": true,
     "appId": "com.kkai.ahg-retainer",
     "productName": "AHG Document Creation Tool",
     "win": {

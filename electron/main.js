@@ -8,6 +8,29 @@ const Docxtemplater = require('docxtemplater');
 const libre = require('libreoffice-convert');
 libre.convertAsync = require('util').promisify(libre.convert);
 
+// ── Allowed template whitelist (path-traversal prevention) ───────────────────
+
+const ALLOWED_TEMPLATES = new Set([
+  'biz_ch7_retainer.docx',
+  'bk_estimate.docx',
+  'ch11_retainer.docx',
+  'ch13_central_consumer_retainer.docx',
+  'ch13_estimate.docx',
+  'ch13_south_business_retainer.docx',
+  'ch13_south_consumer_retainer.docx',
+  'ch7_blank_retainer.docx',
+  'ch7_retainer.docx',
+  'civil_contingency_retainer.docx',
+  'civil_flat_fee_retainer.docx',
+  'civil_hourly_lit_retainer.docx',
+  'civil_hourly_nonlit_retainer.docx',
+  'family_law_retainer.docx',
+  'probate_retainer.docx',
+  'spanish_ch7_retainer.docx',
+  'template.docx',
+  'ud_retainer.docx',
+]);
+
 // ── LibreOffice check & install ───────────────────────────────────────────────
 
 const SOFFICE_PATHS = [
@@ -102,21 +125,50 @@ function readConfig() {
 
 ipcMain.handle('get-version', () => app.getVersion());
 
+ipcMain.handle('get-config', (_event, key) => {
+  const config = readConfig();
+  return config[key];
+});
+
+ipcMain.handle('set-config', (_event, key, value) => {
+  const config = readConfig();
+  config[key] = value;
+  fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2));
+});
+
 ipcMain.handle('set-title', (_event, title) => {
   const win = BrowserWindow.getFocusedWindow();
   if (win) win.setTitle(title);
 });
 
 ipcMain.handle('show-in-folder', (_event, filePath) => {
-  shell.showItemInFolder(filePath);
+  const allowedPrefixes = [
+    app.getPath('downloads'),
+    app.getPath('home'),
+    '/Volumes/Public/Client Folders A-Z',
+    '\\\\ReadyNAS\\Public\\Client Folders A-Z',
+  ];
+  const resolved = path.resolve(filePath);
+  const isAllowed = allowedPrefixes.some(prefix => resolved.startsWith(prefix));
+  if (!isAllowed) return;
+  shell.showItemInFolder(resolved);
 });
 
 ipcMain.handle('open-file', async (_event, filePath) => {
-  if (!fs.existsSync(filePath)) {
-    dialog.showMessageBox({ type: 'warning', title: 'File Not Found', message: `This file has been moved or deleted:\n${filePath}` });
+  const allowedPrefixes = [
+    app.getPath('downloads'),
+    app.getPath('home'),
+    '/Volumes/Public/Client Folders A-Z',
+    '\\\\ReadyNAS\\Public\\Client Folders A-Z',
+  ];
+  const resolved = path.resolve(filePath);
+  const isAllowed = allowedPrefixes.some(prefix => resolved.startsWith(prefix));
+  if (!isAllowed) return;
+  if (!fs.existsSync(resolved)) {
+    dialog.showMessageBox({ type: 'warning', title: 'File Not Found', message: `This file has been moved or deleted:\n${resolved}` });
     return;
   }
-  shell.openPath(filePath);
+  shell.openPath(resolved);
 });
 
 ipcMain.handle('get-history', () => {
@@ -232,6 +284,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
     },
   });
 
@@ -294,6 +347,9 @@ function fillTemplate(zip, formData, templateFile) {
 
 ipcMain.handle('generate-preview', async (_event, { formData, templateFile }) => {
   try {
+    if (!ALLOWED_TEMPLATES.has(templateFile)) {
+      return { error: 'Invalid template file.' };
+    }
     const templatePath = path.join(__dirname, '..', 'assets', templateFile);
     const content = fs.readFileSync(templatePath, 'binary');
     const zip = new PizZip(content);
@@ -317,8 +373,11 @@ ipcMain.handle('generate-preview', async (_event, { formData, templateFile }) =>
   }
 });
 
-ipcMain.handle('generate-document', async (_event, { formData, templateFile, filenamePrefix }) => {
+ipcMain.handle('generate-document', async (_event, { formData, templateFile, filenamePrefix, isBusinessName }) => {
   try {
+    if (!ALLOWED_TEMPLATES.has(templateFile)) {
+      return { success: false, error: 'Invalid template file.' };
+    }
     const templatePath = path.join(__dirname, '..', 'assets', templateFile);
     const content = fs.readFileSync(templatePath, 'binary');
     const zip = new PizZip(content);
@@ -379,14 +438,18 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
     }
 
     const rawName    = formData.Client_Name || 'Client';
-    const clients    = rawName.split(/\s+and\s+/i);
-    const formatted  = clients.map(formatClientName).join(' and ');
-    const safeName   = formatted.replace(/[/\\:*?"<>|]/g, '');
-
-    // Use the last name of the first client to pick the alpha folder
-    const primaryParts = clients[0].trim().split(/\s+/);
-    const primaryLast  = primaryParts[primaryParts.length - 1];
-    const alphaFolder  = getAlphaFolder(primaryLast);
+    let safeName, alphaFolder;
+    if (isBusinessName) {
+      safeName = rawName.replace(/[/\\:*?"<>|]/g, '');
+      alphaFolder = getAlphaFolder(rawName.trim());
+    } else {
+      const clients    = rawName.split(/\s+and\s+/i);
+      const formatted  = clients.map(formatClientName).join(' and ');
+      safeName   = formatted.replace(/[/\\:*?"<>|]/g, '');
+      const primaryParts = clients[0].trim().split(/\s+/);
+      const primaryLast  = primaryParts[primaryParts.length - 1];
+      alphaFolder  = getAlphaFolder(primaryLast);
+    }
 
     // Walk up the path until we find a directory that exists
     const storedDefault = readConfig().defaultDir;
@@ -475,6 +538,10 @@ app.whenReady().then(() => {
 
   // Auto-update — only runs in packaged app, not dev
   if (app.isPackaged) {
+    autoUpdater.on('error', (err) => {
+      console.error('Auto-update error:', err.message);
+    });
+
     autoUpdater.checkForUpdatesAndNotify();
     setInterval(() => autoUpdater.checkForUpdatesAndNotify(), 60 * 60 * 1000);
 
