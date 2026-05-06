@@ -20,6 +20,7 @@ export default function UDRetainerForm({ savedFormData, onFormChange, onGenerate
     County: '',
     stage: '',
   });
+  const [nameType, setNameType] = useState(savedFormData?._nameType || 'client');
 
   const {
     isGenerating, isPreviewing, previewPdf,
@@ -30,7 +31,12 @@ export default function UDRetainerForm({ savedFormData, onFormChange, onGenerate
   function handleChange(key, value) {
     const updated = { ...formData, [key]: value };
     setFormData(prev => ({ ...prev, [key]: value }));
-    if (onFormChange) onFormChange(updated);
+    if (onFormChange) onFormChange({ ...updated, _nameType: nameType });
+  }
+
+  function handleNameTypeChange(type) {
+    setNameType(type);
+    if (onFormChange) onFormChange({ ...formData, _nameType: type });
   }
 
   function buildPayload() {
@@ -49,7 +55,7 @@ export default function UDRetainerForm({ savedFormData, onFormChange, onGenerate
   }
 
   function handleGenerate() {
-    runGenerate(buildPayload, 'ud_retainer.docx', 'Griffin_UD', onGenerated);
+    runGenerate(buildPayload, 'ud_retainer.docx', 'Griffin_UD', onGenerated, { isBusinessName: nameType === 'business' });
   }
 
   const isDisabled = isGenerating || !formData.Client_Name.trim() || !formData.stage;
@@ -58,11 +64,15 @@ export default function UDRetainerForm({ savedFormData, onFormChange, onGenerate
     if (!window.confirm('Clear all fields?')) return;
     const empty = { Client_Name: '', Tenant_Name: '', Property_Address: '', County: '', stage: '' };
     setFormData(empty);
-    if (onFormChange) onFormChange(empty);
+    setNameType('client');
+    if (onFormChange) onFormChange({ ...empty, _nameType: 'client' });
     clearStatus();
   }
 
   const handleKeyDown = makeKeyDownHandler(isDisabled, handleGenerate);
+
+  const nameLabel = nameType === 'business' ? 'Business Name' : 'Client / Landlord Name';
+  const namePlaceholder = nameType === 'business' ? 'e.g. Acme LLC' : 'e.g. Jane Doe';
 
   return (
     <div className="flex gap-6 items-start" onKeyDown={handleKeyDown}>
@@ -71,8 +81,32 @@ export default function UDRetainerForm({ savedFormData, onFormChange, onGenerate
         <h2 className={headingClass}>Unlawful Detainer Retainer Agreement</h2>
 
         <div className="space-y-1">
-          <label className={labelClass}>Client / Landlord Name <span className="text-red-500">*</span></label>
-          <input ref={firstInputRef} type="text" value={formData.Client_Name} onChange={e => handleChange('Client_Name', e.target.value)} placeholder="e.g. Jane Doe" className={inputClass} />
+          <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 w-fit mb-2">
+            <button
+              type="button"
+              onClick={() => handleNameTypeChange('client')}
+              className={`px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                nameType === 'client'
+                  ? 'bg-slate-700 text-white dark:bg-slate-500'
+                  : 'bg-white text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
+              }`}
+            >
+              Client
+            </button>
+            <button
+              type="button"
+              onClick={() => handleNameTypeChange('business')}
+              className={`px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                nameType === 'business'
+                  ? 'bg-slate-700 text-white dark:bg-slate-500'
+                  : 'bg-white text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
+              }`}
+            >
+              Business
+            </button>
+          </div>
+          <label className={labelClass}>{nameLabel} <span className="text-red-500">*</span></label>
+          <input ref={firstInputRef} type="text" value={formData.Client_Name} onChange={e => handleChange('Client_Name', e.target.value)} placeholder={namePlaceholder} className={inputClass} />
         </div>
 
         <div className="space-y-1">

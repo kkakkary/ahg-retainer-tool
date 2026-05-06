@@ -18,6 +18,7 @@ const TABS = [
         templateFile="bk_estimate.docx"
         filenamePrefix="Griffin_BkEstimate"
         showDiscountedFee
+        allowNameToggle
         {...props}
       />
     ),
@@ -37,6 +38,7 @@ const TABS = [
         ]}
         templateFile="ch7_retainer.docx"
         filenamePrefix="Griffin_Ch7Retainer"
+        allowNameToggle
         {...props}
       />
     ),
@@ -57,6 +59,7 @@ const TABS = [
         templateFile="biz_ch7_retainer.docx"
         filenamePrefix="Griffin_BizCh7Retainer"
         isBusinessName
+        allowNameToggle
         {...props}
       />
     ),
@@ -75,6 +78,7 @@ const TABS = [
         ]}
         templateFile="ch11_retainer.docx"
         filenamePrefix="Griffin_Ch11Retainer"
+        allowNameToggle
       {...props}
       />
     ),
@@ -94,6 +98,7 @@ const TABS = [
         ]}
         templateFile="spanish_ch7_retainer.docx"
         filenamePrefix="Griffin_SpanishCh7"
+        allowNameToggle
       {...props}
       />
     ),
@@ -111,6 +116,7 @@ const TABS = [
         templateFile="ch13_estimate.docx"
         filenamePrefix="Griffin_Ch13Estimate"
         showDiscountedFee={false}
+        allowNameToggle
         {...props}
       />
     ),
@@ -192,6 +198,7 @@ const TABS = [
         ]}
         templateFile="civil_hourly_lit_retainer.docx"
         filenamePrefix="Griffin_CivilHourlyLit"
+        allowNameToggle
       {...props}
       />
     ),
@@ -215,6 +222,7 @@ const TABS = [
         ]}
         templateFile="civil_hourly_nonlit_retainer.docx"
         filenamePrefix="Griffin_CivilHourlyNonLit"
+        allowNameToggle
       {...props}
       />
     ),
@@ -237,6 +245,7 @@ const TABS = [
         ]}
         templateFile="civil_flat_fee_retainer.docx"
         filenamePrefix="Griffin_CivilFlatFee"
+        allowNameToggle
       {...props}
       />
     ),
@@ -257,6 +266,7 @@ const TABS = [
         ]}
         templateFile="civil_contingency_retainer.docx"
         filenamePrefix="Griffin_CivilContingency"
+        allowNameToggle
       {...props}
       />
     ),
@@ -304,6 +314,7 @@ const TABS = [
         ]}
         templateFile="probate_retainer.docx"
         filenamePrefix="Griffin_Probate"
+        allowNameToggle
       {...props}
       />
     ),

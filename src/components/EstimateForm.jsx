@@ -36,15 +36,16 @@ const FEE_FIELDS = [
 
 const initialFees = Object.fromEntries(FEE_FIELDS.map((f) => [f.key, '']));
 
-export default function EstimateForm({ title, baseFee, baseFeeLabel, templateFile, filenamePrefix, showDiscountedFee, savedFormData, onFormChange, onGenerated }) {
+export default function EstimateForm({ title, baseFee, baseFeeLabel, templateFile, filenamePrefix, showDiscountedFee, allowNameToggle, savedFormData, onFormChange, onGenerated }) {
   const saved = savedFormData || {};
   const [clientName, setClientName] = useState(saved.clientName || '');
   const [totalDebt, setTotalDebt] = useState(saved.totalDebt || '');
   const [discountedFee, setDiscountedFee] = useState(saved.discountedFee || '');
   const [fees, setFees] = useState(saved.fees || initialFees);
+  const [nameType, setNameType] = useState(saved.nameType || 'client');
 
   function notifyChange(updates) {
-    const base = { clientName, totalDebt, fees };
+    const base = { clientName, totalDebt, fees, nameType };
     if (showDiscountedFee) base.discountedFee = discountedFee;
     if (onFormChange) onFormChange({ ...base, ...updates });
   }
@@ -82,13 +83,14 @@ export default function EstimateForm({ title, baseFee, baseFeeLabel, templateFil
   }
 
   function handleGenerate() {
-    runGenerate(buildPayload, templateFile, filenamePrefix, onGenerated);
+    const isBusinessName = allowNameToggle ? nameType === 'business' : false;
+    runGenerate(buildPayload, templateFile, filenamePrefix, onGenerated, { isBusinessName });
   }
 
   function handleClear() {
     if (!window.confirm('Clear all fields?')) return;
-    setClientName(''); setTotalDebt(''); setDiscountedFee(''); setFees(initialFees);
-    const cleared = { clientName: '', totalDebt: '', fees: initialFees };
+    setClientName(''); setTotalDebt(''); setDiscountedFee(''); setFees(initialFees); setNameType('client');
+    const cleared = { clientName: '', totalDebt: '', fees: initialFees, nameType: 'client' };
     if (showDiscountedFee) cleared.discountedFee = '';
     notifyChange(cleared);
     clearStatus();
@@ -98,6 +100,13 @@ export default function EstimateForm({ title, baseFee, baseFeeLabel, templateFil
 
   const handleKeyDown = makeKeyDownHandler(isDisabled, handleGenerate);
 
+  const nameLabel = allowNameToggle
+    ? (nameType === 'business' ? 'Business Name' : 'Client Name')
+    : 'Client Name';
+  const namePlaceholder = allowNameToggle
+    ? (nameType === 'business' ? 'e.g. Acme LLC' : 'e.g. Jane Doe')
+    : 'e.g. Jane Doe';
+
   return (
     <div className="flex gap-6 items-start" onKeyDown={handleKeyDown}>
     <div className="w-[520px] flex-shrink-0 space-y-6">
@@ -105,13 +114,39 @@ export default function EstimateForm({ title, baseFee, baseFeeLabel, templateFil
       <div className={`${cardClass} p-6 space-y-4`}>
         <h2 className={headingClass}>{title}</h2>
         <div className="space-y-1">
-          <label className={labelClass}>Client Name <span className="text-red-500">*</span></label>
+          {allowNameToggle && (
+            <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 w-fit mb-2">
+              <button
+                type="button"
+                onClick={() => { setNameType('client'); notifyChange({ nameType: 'client' }); }}
+                className={`px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                  nameType === 'client'
+                    ? 'bg-slate-700 text-white dark:bg-slate-500'
+                    : 'bg-white text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
+                }`}
+              >
+                Client
+              </button>
+              <button
+                type="button"
+                onClick={() => { setNameType('business'); notifyChange({ nameType: 'business' }); }}
+                className={`px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                  nameType === 'business'
+                    ? 'bg-slate-700 text-white dark:bg-slate-500'
+                    : 'bg-white text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
+                }`}
+              >
+                Business
+              </button>
+            </div>
+          )}
+          <label className={labelClass}>{nameLabel} <span className="text-red-500">*</span></label>
           <input
             ref={firstInputRef}
             type="text"
             value={clientName}
             onChange={(e) => { setClientName(e.target.value); notifyChange({ clientName: e.target.value }); }}
-            placeholder="e.g. Jane Doe"
+            placeholder={namePlaceholder}
             className={inputClass}
           />
         </div>
