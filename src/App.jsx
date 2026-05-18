@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import EstimateForm from './components/EstimateForm';
 import SimpleRetainerForm from './components/SimpleRetainerForm';
 import UDRetainerForm from './components/UDRetainerForm';
+import LettersToCreditorsForm from './components/LettersToCreditorsForm';
 import logo from './assets/logo.png';
 
 const TABS = [
@@ -318,6 +319,13 @@ const TABS = [
       {...props}
       />
     ),
+  },
+
+  // ── Letters to Creditors ───────────────────────────────────────────────────
+  {
+    id: 'letters_to_creditors',
+    label: 'Letters to Creditors',
+    component: LettersToCreditorsForm,
   },
 ];
 

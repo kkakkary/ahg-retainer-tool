@@ -13,4 +13,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setConfig: (key, value) => ipcRenderer.invoke('set-config', key, value),
   getHistory: () => ipcRenderer.invoke('get-history'),
   clearHistory: () => ipcRenderer.invoke('clear-history'),
+  previewLettersToCreditors: (payload) => ipcRenderer.invoke('preview-letters-to-creditors', payload),
+  generateLettersToCreditors: (payload) => ipcRenderer.invoke('generate-letters-to-creditors', payload),
 });

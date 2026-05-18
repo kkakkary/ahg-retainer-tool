@@ -6,7 +6,7 @@ const { autoUpdater } = require('electron-updater');
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const libre = require('libreoffice-convert');
-libre.convertAsync = require('util').promisify(libre.convert);
+libre.convertWithOptionsAsync = require('util').promisify(libre.convertWithOptions);
 
 // ── Allowed template whitelist (path-traversal prevention) ───────────────────
 
@@ -37,6 +37,15 @@ const SOFFICE_PATHS = [
   '/Applications/LibreOffice.app/Contents/MacOS/soffice',
   '/usr/local/bin/soffice',
   '/opt/homebrew/bin/soffice',
+  '/usr/bin/libreoffice',
+  '/usr/bin/soffice',
+  ...(process.platform === 'win32' ? [
+    process.env.LIBRE_OFFICE_EXE,
+    path.join(process.env['PROGRAMFILES(X86)'] || '', 'LibreOffice/program/soffice.exe'),
+    path.join(process.env.PROGRAMFILES || '', 'LibreOffice/program/soffice.exe'),
+    'C:/Program Files/LibreOffice/program/soffice.exe',
+    'D:/Program Files/LibreOffice/program/soffice.exe',
+  ].filter(Boolean) : []),
 ];
 
 function isLibreOfficeInstalled() {
@@ -272,6 +281,64 @@ function replacePlaceholders(xml, formData) {
   return xml;
 }
 
+// ── Letters to Creditors generation ──────────────────────────────────────────
+
+const LETTERS_IMAGE_ANCHOR = `<w:drawing><wp:anchor distT="0" distB="0" distL="114300" distR="114300" simplePos="0" relativeHeight="251658240" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="0" wp14:anchorId="7B2D5CF1" wp14:editId="16537454"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="page"><wp:posOffset>914400</wp:posOffset></wp:positionH><wp:positionV relativeFrom="page"><wp:posOffset>152400</wp:posOffset></wp:positionV><wp:extent cx="5977128" cy="1191768"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapTopAndBottom/><wp:docPr id="86642" name="Picture 86642"/><wp:cNvGraphicFramePr/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="86642" name="Picture 86642"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId7"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="5977128" cy="1191768"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing>`;
+
+const LETTERS_SECT_PR = `<w:sectPr w:rsidR="00FB6D52" w:rsidSect="009E467C"><w:headerReference w:type="even" r:id="rId11"/><w:headerReference w:type="default" r:id="rId12"/><w:footerReference w:type="even" r:id="rId13"/><w:footerReference w:type="default" r:id="rId14"/><w:headerReference w:type="first" r:id="rId15"/><w:footerReference w:type="first" r:id="rId16"/><w:pgSz w:w="12211" w:h="15206"/><w:pgMar w:top="2886" w:right="1382" w:bottom="5272" w:left="1546" w:header="576" w:footer="720" w:gutter="0"/><w:cols w:space="720"/><w:docGrid w:linePitch="299"/></w:sectPr>`;
+
+function buildOneLetter(letterDate, clientNames, creditor, isFirst = true) {
+  const e = escXml;
+  const imageRunXml = `<w:r><w:rPr><w:noProof/></w:rPr>${LETTERS_IMAGE_ANCHOR}</w:r>`;
+  const pageBreak = isFirst ? '' : '<w:pageBreakBefore/>';
+
+  return (
+    `<w:p><w:pPr>${pageBreak}<w:spacing w:after="519"/><w:ind w:left="0" w:firstLine="96"/></w:pPr><w:r><w:t>${e(letterDate)}</w:t></w:r></w:p>` +
+    `<w:p><w:pPr><w:ind w:left="96"/></w:pPr><w:r><w:t>${e(creditor.name)}</w:t></w:r></w:p>` +
+    `<w:p><w:r><w:t>${e(creditor.address1)}</w:t></w:r></w:p>` +
+    `<w:p><w:pPr><w:spacing w:after="480"/><w:ind w:left="91"/></w:pPr><w:r><w:t>${e(creditor.address2)}</w:t></w:r></w:p>` +
+    `<w:p><w:pPr><w:jc w:val="left"/><w:tabs><w:tab w:val="left" w:pos="816"/></w:tabs><w:spacing w:after="353"/><w:ind w:left="816" w:right="4416" w:hanging="720"/></w:pPr><w:r><w:t xml:space="preserve">Re:</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${e(clientNames)}</w:t></w:r><w:r><w:br/></w:r><w:r><w:t xml:space="preserve">Account(s) ending in: ${e(creditor.accounts)}</w:t></w:r></w:p>` +
+    `<w:p><w:pPr><w:spacing w:after="197"/><w:ind w:left="91"/></w:pPr><w:r><w:t>To Whom It May Concern:</w:t></w:r></w:p>` +
+    `<w:p><w:pPr><w:spacing w:after="167"/><w:ind w:left="91"/></w:pPr><w:r><w:t>On ${e(letterDate)}, the above-named debtor(s) retained this office to file a voluntary petition under Chapter 7 of the U.S. Bankruptcy Code, in the U.S. Bankruptcy Court, Central District of California.</w:t></w:r></w:p>` +
+    `<w:p><w:pPr><w:spacing w:after="140"/><w:ind w:left="91"/></w:pPr>${imageRunXml}<w:r><w:t>Once the Case is filed under 11 U.S.C. Section 362 (a), you may not:</w:t></w:r></w:p>` +
+    `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr><w:spacing w:after="140"/><w:ind w:hanging="130"/></w:pPr><w:r><w:t>take any action against the debtor(s) or the debtor(s)’s property to collect any debt;</w:t></w:r></w:p>` +
+    `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr><w:spacing w:after="142"/><w:ind w:hanging="130"/></w:pPr><w:r><w:t>enforce any lien on debtor(s)’s real or personal property;</w:t></w:r></w:p>` +
+    `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr><w:spacing w:after="140"/><w:ind w:hanging="130"/></w:pPr><w:r><w:t>repossess any property in debtor(s)’s possession;</w:t></w:r></w:p>` +
+    `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr><w:spacing w:after="140"/><w:ind w:hanging="130"/></w:pPr><w:r><w:t>discontinue any service or benefit currently being provided to the debtor(s) by you;</w:t></w:r></w:p>` +
+    `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr><w:spacing w:after="149"/><w:ind w:hanging="130"/></w:pPr><w:r><w:t>take any action to evict the debtor(s) from his/her residential dwelling.</w:t></w:r></w:p>` +
+    `<w:p><w:pPr><w:spacing w:after="149"/><w:ind w:left="91"/></w:pPr><w:r><w:t>A violation of these prohibitions may be considered contempt of court and be punished accordingly.</w:t></w:r></w:p>`
+  );
+}
+
+async function generateLettersBuffer({ clientNames, creditors }) {
+  const letterDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const templatePath = path.join(__dirname, '..', 'assets', 'Template - Letters to Creditors 5-8-2026 (Signed).docx');
+  const content = fs.readFileSync(templatePath, 'binary');
+  const zip = new PizZip(content);
+
+  let footer2Xml = zip.file('word/footer2.xml').asText();
+  footer2Xml = footer2Xml.replace('<w:r><w:t>1</w:t></w:r>', '');
+  zip.file('word/footer2.xml', footer2Xml);
+
+  let footer1Xml = zip.file('word/footer1.xml').asText();
+  footer1Xml = footer1Xml.replace('<w:r><w:t>2</w:t></w:r>', '');
+  zip.file('word/footer1.xml', footer1Xml);
+
+  let bodyContent = '';
+  creditors.forEach((creditor, i) => {
+    bodyContent += buildOneLetter(letterDate, clientNames, creditor, i === 0);
+  });
+  bodyContent += LETTERS_SECT_PR;
+
+  let docXml = zip.file('word/document.xml').asText();
+  const bodyStart = docXml.indexOf('<w:body>');
+  const bodyEnd = docXml.lastIndexOf('</w:body>') + '</w:body>'.length;
+  docXml = docXml.slice(0, bodyStart) + `<w:body>${bodyContent}</w:body>` + docXml.slice(bodyEnd);
+  zip.file('word/document.xml', docXml);
+
+  return zip.generate({ type: 'nodebuffer' });
+}
+
 // ── Window ────────────────────────────────────────────────────────────────────
 
 function createWindow() {
@@ -355,13 +422,14 @@ ipcMain.handle('generate-preview', async (_event, { formData, templateFile }) =>
     const zip = new PizZip(content);
     const buffer = fillTemplate(zip, { ...formData }, templateFile);
 
+    const libreOptions = { sofficeBinaryPaths: SOFFICE_PATHS };
     let pdfBuffer;
     try {
-      pdfBuffer = await libre.convertAsync(buffer, '.pdf', undefined);
+      pdfBuffer = await libre.convertWithOptionsAsync(buffer, '.pdf', undefined, libreOptions);
     } catch (convErr) {
       if (/source file could not be loaded/i.test(convErr.message)) {
         await new Promise((resolve) => exec('pkill -9 soffice; sleep 1', resolve));
-        pdfBuffer = await libre.convertAsync(buffer, '.pdf', undefined);
+        pdfBuffer = await libre.convertWithOptionsAsync(buffer, '.pdf', undefined, libreOptions);
       } else {
         throw convErr;
       }
@@ -384,13 +452,14 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
     const buffer = fillTemplate(zip, formData, templateFile);
 
     // ── Convert to PDF ───────────────────────────────────────────────────────
+    const libreOptions = { sofficeBinaryPaths: SOFFICE_PATHS };
     let pdfBuffer;
     try {
-      pdfBuffer = await libre.convertAsync(buffer, '.pdf', undefined);
+      pdfBuffer = await libre.convertWithOptionsAsync(buffer, '.pdf', undefined, libreOptions);
     } catch (convErr) {
       if (/source file could not be loaded/i.test(convErr.message)) {
         await new Promise((resolve) => exec('pkill -9 soffice; sleep 1', resolve));
-        pdfBuffer = await libre.convertAsync(buffer, '.pdf', undefined);
+        pdfBuffer = await libre.convertWithOptionsAsync(buffer, '.pdf', undefined, libreOptions);
       } else {
         throw convErr;
       }
@@ -414,6 +483,7 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
       'Griffin_FamilyLaw':          'Family Law Retainer',
       'Griffin_UD':                 'UD Retainer',
       'Griffin_Probate':            'Probate Retainer',
+      'Griffin_LettersToCreditors': 'Letters to Creditors',
     };
     const formLabel = FORM_LABELS[filenamePrefix] || filenamePrefix;
 
@@ -513,6 +583,133 @@ ipcMain.handle('generate-document', async (_event, { formData, templateFile, fil
         .join(' | ');
       return { success: false, error: `Template error: ${details}` };
     }
+    return { success: false, error: err.message };
+  }
+});
+
+// ── Letters to Creditors IPC handlers ────────────────────────────────────────
+
+ipcMain.handle('preview-letters-to-creditors', async (_event, { clientNames, creditors }) => {
+  try {
+    const buffer = await generateLettersBuffer({ clientNames, creditors });
+    const libreOptions = { sofficeBinaryPaths: SOFFICE_PATHS };
+    let pdfBuffer;
+    try {
+      pdfBuffer = await libre.convertWithOptionsAsync(buffer, '.pdf', undefined, libreOptions);
+    } catch (convErr) {
+      if (/source file could not be loaded/i.test(convErr.message)) {
+        await new Promise((resolve) => exec('pkill -9 soffice; sleep 1', resolve));
+        pdfBuffer = await libre.convertWithOptionsAsync(buffer, '.pdf', undefined, libreOptions);
+      } else {
+        throw convErr;
+      }
+    }
+    return { pdfBase64: pdfBuffer.toString('base64') };
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('generate-letters-to-creditors', async (_event, { clientNames, creditors, isBusinessName }) => {
+  try {
+    const buffer = await generateLettersBuffer({ clientNames, creditors });
+
+    const libreOptions = { sofficeBinaryPaths: SOFFICE_PATHS };
+    let pdfBuffer;
+    try {
+      pdfBuffer = await libre.convertWithOptionsAsync(buffer, '.pdf', undefined, libreOptions);
+    } catch (convErr) {
+      if (/source file could not be loaded/i.test(convErr.message)) {
+        await new Promise((resolve) => exec('pkill -9 soffice; sleep 1', resolve));
+        pdfBuffer = await libre.convertWithOptionsAsync(buffer, '.pdf', undefined, libreOptions);
+      } else {
+        throw convErr;
+      }
+    }
+
+    const formLabel = 'Letters to Creditors';
+
+    const CLIENT_FOLDERS_BASE = process.platform === 'win32'
+      ? '\\\\ReadyNAS\\Public\\Client Folders A-Z'
+      : '/Volumes/Public/Client Folders A-Z';
+
+    function getAlphaFolderLC(c0) {
+      const c = (c0 || 'A').toUpperCase();
+      if (c >= 'A' && c <= 'F') return 'A-F';
+      if (c >= 'G' && c <= 'L') return 'G-L';
+      if (c >= 'M' && c <= 'R') return 'M-R';
+      return 'S-Z';
+    }
+
+    function fmtClientName(fullName) {
+      const parts = fullName.trim().split(/\s+/);
+      if (parts.length === 1) return parts[0];
+      return `${parts[parts.length - 1]}, ${parts.slice(0, -1).join(' ')}`;
+    }
+
+    const rawName = clientNames || 'Client';
+    let safeName, alphaFolder;
+    if (isBusinessName) {
+      safeName = rawName.replace(/[/\\:*?"<>|]/g, '');
+      alphaFolder = getAlphaFolderLC(rawName.trim()[0]);
+    } else {
+      const clients = rawName.split(/\s+and\s+/i);
+      const formatted = clients.map(fmtClientName).join(' and ');
+      safeName = formatted.replace(/[/\\:*?"<>|]/g, '');
+      const primaryParts = clients[0].trim().split(/\s+/);
+      alphaFolder = getAlphaFolderLC(primaryParts[primaryParts.length - 1][0]);
+    }
+
+    const storedDefault = readConfig().defaultDir;
+    function deepestExistingLC(fullPath) {
+      let current = fullPath;
+      while (current && current !== path.dirname(current)) {
+        if (fs.existsSync(current)) return current;
+        current = path.dirname(current);
+      }
+      return storedDefault || app.getPath('downloads');
+    }
+
+    const alphaDir = path.join(CLIENT_FOLDERS_BASE, alphaFolder);
+    let defaultDir = deepestExistingLC(alphaDir);
+    if (fs.existsSync(alphaDir)) {
+      const search = safeName.toLowerCase();
+      const match = fs.readdirSync(alphaDir).find((entry) => {
+        const full = path.join(alphaDir, entry);
+        return fs.statSync(full).isDirectory() && entry.toLowerCase().startsWith(search);
+      });
+      if (match) {
+        defaultDir = path.join(alphaDir, match);
+      } else {
+        const newClientDir = path.join(alphaDir, safeName);
+        fs.mkdirSync(newClientDir, { recursive: true });
+        defaultDir = newClientDir;
+      }
+    }
+
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      defaultPath: path.join(defaultDir, `${safeName} - ${formLabel}.pdf`),
+      filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
+    });
+
+    if (canceled || !filePath) return { success: false, error: 'Save cancelled.' };
+
+    fs.writeFileSync(filePath, pdfBuffer);
+    shell.openPath(filePath);
+
+    const config = readConfig();
+    const history = config.history || [];
+    history.unshift({
+      clientName: clientNames || 'Unknown',
+      formType: formLabel,
+      filePath,
+      timestamp: new Date().toISOString(),
+    });
+    config.history = history.slice(0, 50);
+    fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2));
+
+    return { success: true, filePath };
+  } catch (err) {
     return { success: false, error: err.message };
   }
 });
