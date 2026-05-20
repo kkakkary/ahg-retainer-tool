@@ -4,9 +4,10 @@ import EstimateForm from './components/EstimateForm';
 import SimpleRetainerForm from './components/SimpleRetainerForm';
 import UDRetainerForm from './components/UDRetainerForm';
 import LettersToCreditorsForm from './components/LettersToCreditorsForm';
+import SettingsForm from './components/SettingsForm';
 import logo from './assets/logo.png';
 
-const TABS = [
+const RETAINER_TABS = [
   // ── BK Fee Estimate ────────────────────────────────────────────────────────
   {
     id: 'bk_estimate',
@@ -321,7 +322,9 @@ const TABS = [
     ),
   },
 
-  // ── Letters to Creditors ───────────────────────────────────────────────────
+];
+
+const LETTER_TABS = [
   {
     id: 'letters_to_creditors',
     label: 'Letters to Creditors',
@@ -329,12 +332,15 @@ const TABS = [
   },
 ];
 
+const ALL_TABS = [...RETAINER_TABS, ...LETTER_TABS];
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState(TABS[0].id);
+  const [activeTab, setActiveTab] = useState(RETAINER_TABS[0].id);
   const [version, setVersion] = useState('');
   const [formStates, setFormStates] = useState({});
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
@@ -349,7 +355,7 @@ export default function App() {
   }, [darkMode]);
 
   useEffect(() => {
-    const label = TABS.find((t) => t.id === activeTab)?.label || '';
+    const label = ALL_TABS.find((t) => t.id === activeTab)?.label || '';
     window.electronAPI.setTitle(`AHG Document Creation Tool — ${label}`);
   }, [activeTab]);
 
@@ -383,7 +389,7 @@ export default function App() {
     if (el) el.scrollBy({ left: dir * 200, behavior: 'smooth' });
   };
 
-  const activeTabConfig = TABS.find((t) => t.id === activeTab);
+  const activeTabConfig = ALL_TABS.find((t) => t.id === activeTab);
   const ActiveForm = activeTabConfig.component;
 
   return (
@@ -397,7 +403,7 @@ export default function App() {
         </div>
         <div className="ml-auto flex items-center gap-3">
           <button
-            onClick={() => { setShowHistory(!showHistory); refreshHistory(); }}
+            onClick={() => { setShowHistory(!showHistory); if (!showHistory) setShowSettings(false); refreshHistory(); }}
             className="text-xs text-slate-300 hover:text-white transition-colors cursor-pointer"
           >
             {showHistory ? 'Hide History' : 'Recent Documents'}
@@ -409,13 +415,19 @@ export default function App() {
           >
             {darkMode ? '☀ Light' : '☾ Dark'}
           </button>
+          <button
+            onClick={() => { setShowSettings(!showSettings); if (!showSettings) setShowHistory(false); }}
+            className={`text-xs transition-colors cursor-pointer ${showSettings ? 'text-amber-400' : 'text-slate-300 hover:text-white'}`}
+          >
+            Settings
+          </button>
           {version && (
             <span className="text-xs text-slate-400">v{version}</span>
           )}
         </div>
       </header>
 
-      {/* Tab bar — horizontally scrollable with arrow indicators */}
+      {/* Retainer forms tab bar */}
       <div className="bg-slate-700 flex-shrink-0 flex items-center relative">
         {canScrollLeft && (
           <button
@@ -432,7 +444,7 @@ export default function App() {
           className="flex gap-1 px-6 overflow-x-auto scrollbar-hide"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {TABS.map((tab) => (
+          {RETAINER_TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -455,6 +467,28 @@ export default function App() {
             &#8250;
           </button>
         )}
+      </div>
+
+      {/* Letters / documents tab bar */}
+      <div className="bg-slate-600 flex-shrink-0 flex items-center px-6 border-t border-slate-500">
+        {LETTER_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex-shrink-0 whitespace-nowrap px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
+              activeTab === tab.id
+                ? 'border-amber-400 text-white'
+                : 'border-transparent text-slate-400 hover:text-white hover:border-slate-500'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Settings panel */}
+      <div className={`bg-white dark:bg-gray-800 border-b border-stone-200 dark:border-gray-700 px-6 flex-shrink-0 transition-all duration-200 ease-in-out overflow-hidden ${showSettings ? 'max-h-96 py-4 opacity-100' : 'max-h-0 py-0 opacity-0 border-b-0'}`}>
+        <SettingsForm />
       </div>
 
       {/* History panel */}

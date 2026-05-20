@@ -15,4 +15,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearHistory: () => ipcRenderer.invoke('clear-history'),
   previewLettersToCreditors: (payload) => ipcRenderer.invoke('preview-letters-to-creditors', payload),
   generateLettersToCreditors: (payload) => ipcRenderer.invoke('generate-letters-to-creditors', payload),
+  getGeminiKey: () => ipcRenderer.invoke('get-gemini-key'),
+  setGeminiKey: (key) => ipcRenderer.invoke('set-gemini-key', key),
+  scanCreditReport: (filePath) => ipcRenderer.invoke('scan-credit-report', filePath),
+  openClientFolder: (payload) => ipcRenderer.invoke('open-client-folder', payload),
+  showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options),
 });

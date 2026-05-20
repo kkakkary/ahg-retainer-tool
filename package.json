@@ -12,6 +12,7 @@
     "postinstall": "node scripts/rename-electron.js"
   },
   "dependencies": {
+    "@google/genai": "^2.4.0",
     "docx": "^8.5.0",
     "docxtemplater": "^3.68.3",
     "electron-updater": "^6.8.3",

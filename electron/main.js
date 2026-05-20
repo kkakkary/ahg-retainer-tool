@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, nativeImage, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, nativeImage, shell, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execFile, exec } = require('child_process');
@@ -7,6 +7,7 @@ const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const libre = require('libreoffice-convert');
 libre.convertWithOptionsAsync = require('util').promisify(libre.convertWithOptions);
+const { GoogleGenAI } = require('@google/genai');
 
 // ── Allowed template whitelist (path-traversal prevention) ───────────────────
 
@@ -188,6 +189,143 @@ ipcMain.handle('clear-history', () => {
   const config = readConfig();
   config.history = [];
   fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2));
+});
+
+ipcMain.handle('show-open-dialog', (_event, options) => dialog.showOpenDialog(options));
+
+ipcMain.handle('get-gemini-key', () => {
+  const config = readConfig();
+  if (!config.geminiKeyEncrypted) return '';
+  try {
+    return safeStorage.decryptString(Buffer.from(config.geminiKeyEncrypted, 'base64'));
+  } catch {
+    return '';
+  }
+});
+
+ipcMain.handle('set-gemini-key', (_event, key) => {
+  const config = readConfig();
+  if (key) {
+    config.geminiKeyEncrypted = safeStorage.encryptString(key).toString('base64');
+  } else {
+    delete config.geminiKeyEncrypted;
+  }
+  fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2));
+});
+
+ipcMain.handle('scan-credit-report', async (_event, filePath) => {
+  const config = readConfig();
+  if (!config.geminiKeyEncrypted) return { success: false, error: 'No Gemini API key configured. Add it in Settings.' };
+  let apiKey;
+  try {
+    apiKey = safeStorage.decryptString(Buffer.from(config.geminiKeyEncrypted, 'base64'));
+  } catch {
+    return { success: false, error: 'Failed to decrypt API key.' };
+  }
+
+  const resolved = path.resolve(filePath);
+  if (!fs.existsSync(resolved)) return { success: false, error: 'File not found.' };
+
+  const fileBytes = fs.readFileSync(resolved);
+  const base64 = fileBytes.toString('base64');
+  const mimeType = resolved.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+
+  const ai = new GoogleGenAI({ apiKey });
+  const prompt = `You are extracting creditor data from a credit report for use in bankruptcy notification letters.
+
+Return ONLY a JSON array (no markdown, no explanation) where each element has:
+- "name": the creditor's full formal legal name — expand any abbreviations or codes to their complete name (e.g. "DEPTEDNELNET" → "Department of Education/Nelnet", "SYNCB" → "Synchrony Bank", "COMENITY" → "Comenity Bank", "JPMCB" → "JPMorgan Chase Bank", "AMEX" → "American Express", "BOA" → "Bank of America"). If you are unsure of the full name, use your best knowledge of common creditor names.
+- "address1": street address line
+- "address2": city, state and zip on one line
+- "accounts": last 4 digits of the account number only (e.g. "1234")
+
+Include every unique creditor account listed. If address info is missing for a creditor, use empty strings.
+Example: [{"name":"Bank of America","address1":"PO Box 12345","address2":"Wilmington, DE 19801","accounts":"4532"}]`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
+        { role: 'user', parts: [
+          { inlineData: { mimeType, data: base64 } },
+          { text: prompt },
+        ]},
+      ],
+    });
+    const text = (response.text ?? '').trim().replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+    const raw = JSON.parse(text);
+
+    // Consolidate duplicate creditor names — merge account numbers, keep first address
+    const nameMap = new Map();
+    const creditors = [];
+    for (const c of raw) {
+      const key = (c.name || '').trim().toLowerCase();
+      if (nameMap.has(key)) {
+        const existing = nameMap.get(key);
+        if (c.accounts?.trim()) {
+          existing.accounts = existing.accounts
+            ? `${existing.accounts}, ${c.accounts.trim()}`
+            : c.accounts.trim();
+        }
+      } else {
+        const entry = { name: c.name || '', address1: c.address1 || '', address2: c.address2 || '', accounts: c.accounts?.trim() || '' };
+        nameMap.set(key, entry);
+        creditors.push(entry);
+      }
+    }
+
+    return { success: true, creditors };
+  } catch (err) {
+    return { success: false, error: `Gemini error: ${err.message}` };
+  }
+});
+
+ipcMain.handle('open-client-folder', (_event, { clientNames, isBusinessName }) => {
+  const CLIENT_FOLDERS_BASE = process.platform === 'win32'
+    ? '\\\\ReadyNAS\\Public\\Client Folders A-Z'
+    : '/Volumes/Public/Client Folders A-Z';
+
+  function getAlphaFolder(lastName) {
+    const c = (lastName[0] || 'A').toUpperCase();
+    if (c >= 'A' && c <= 'F') return 'A-F';
+    if (c >= 'G' && c <= 'L') return 'G-L';
+    if (c >= 'M' && c <= 'R') return 'M-R';
+    return 'S-Z';
+  }
+
+  function formatClientName(fullName) {
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0];
+    const lastName = parts[parts.length - 1];
+    const firstName = parts.slice(0, -1).join(' ');
+    return `${lastName}, ${firstName}`;
+  }
+
+  let safeName, alphaFolder;
+  if (isBusinessName) {
+    safeName = clientNames.replace(/[/\\:*?"<>|]/g, '');
+    alphaFolder = getAlphaFolder(clientNames.trim());
+  } else {
+    const clients = clientNames.split(/\s+and\s+/i);
+    const formatted = clients.map(formatClientName).join(' and ');
+    safeName = formatted.replace(/[/\\:*?"<>|]/g, '');
+    const primaryParts = clients[0].trim().split(/\s+/);
+    alphaFolder = getAlphaFolder(primaryParts[primaryParts.length - 1]);
+  }
+
+  const alphaDir = path.join(CLIENT_FOLDERS_BASE, alphaFolder);
+  if (!fs.existsSync(alphaDir)) {
+    shell.openPath(fs.existsSync(CLIENT_FOLDERS_BASE) ? CLIENT_FOLDERS_BASE : app.getPath('home'));
+    return;
+  }
+
+  const search = safeName.toLowerCase();
+  const match = fs.readdirSync(alphaDir).find((entry) => {
+    const full = path.join(alphaDir, entry);
+    return fs.statSync(full).isDirectory() && entry.toLowerCase().startsWith(search);
+  });
+
+  shell.openPath(match ? path.join(alphaDir, match) : alphaDir);
 });
 
 // ── Number to words ───────────────────────────────────────────────────────────

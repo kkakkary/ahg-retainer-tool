@@ -15,6 +15,7 @@ export default function LettersToCreditorsForm({ savedFormData, onFormChange, on
   const [formData, setFormData] = useState(savedFormData || initialState);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const [previewPdf, setPreviewPdf] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState(null);
@@ -65,6 +66,50 @@ export default function LettersToCreditorsForm({ savedFormData, onFormChange, on
       isBusinessName: formData.nameType === 'business',
       creditors: formData.creditors,
     };
+  }
+
+  async function handleOpenFolder() {
+    if (!formData.clientNames.trim()) return;
+    await window.electronAPI.openClientFolder({
+      clientNames: formData.clientNames.trim(),
+      isBusinessName: formData.nameType === 'business',
+    });
+  }
+
+  async function handleScanCreditReport() {
+    const { canceled, filePaths } = await window.electronAPI.showOpenDialog({
+      title: 'Select Credit Report',
+      filters: [{ name: 'PDF / Image', extensions: ['pdf', 'jpg', 'jpeg', 'png'] }],
+      properties: ['openFile'],
+    });
+    if (canceled || !filePaths?.length) return;
+
+    setIsScanning(true);
+    setStatusMessage('Scanning credit report with Gemini…');
+    setStatusType(null);
+    try {
+      const result = await window.electronAPI.scanCreditReport(filePaths[0]);
+      if (result.success && result.creditors?.length) {
+        const incoming = result.creditors.map((c) => ({
+          name: c.name || '',
+          address1: c.address1 || '',
+          address2: c.address2 || '',
+          accounts: c.accounts || '',
+        }));
+        const existing = formData.creditors.filter((c) => c.name.trim());
+        update({ ...formData, creditors: [...existing, ...incoming] });
+        setStatusMessage(`Found ${incoming.length} creditor${incoming.length !== 1 ? 's' : ''}. Review and edit below.`);
+        setStatusType('success');
+      } else {
+        setStatusMessage(result.error || 'No creditors found in document.');
+        setStatusType('error');
+      }
+    } catch (err) {
+      setStatusMessage(`Scan error: ${err.message}`);
+      setStatusType('error');
+    } finally {
+      setIsScanning(false);
+    }
   }
 
   async function handlePreview() {
@@ -118,7 +163,6 @@ export default function LettersToCreditorsForm({ savedFormData, onFormChange, on
 
   const hasCreditor = formData.creditors.some((c) => c.name.trim());
   const isDisabled = isGenerating || !formData.clientNames.trim() || !hasCreditor;
-
   const nameLabel = formData.nameType === 'business' ? 'Business Name(s)' : 'Client Name(s)';
   const namePlaceholder = formData.nameType === 'business' ? 'e.g. Acme LLC' : 'e.g. John Doe and Jane Doe';
 
@@ -157,6 +201,24 @@ export default function LettersToCreditorsForm({ savedFormData, onFormChange, on
               placeholder={namePlaceholder}
               className={inputClass}
             />
+          </div>
+
+          {/* Scan credit report */}
+          <div className="border border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 space-y-2">
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+              Auto-fill creditors from credit report
+            </p>
+            <button
+              type="button"
+              onClick={handleScanCreditReport}
+              disabled={isScanning}
+              className="w-full px-3 py-2 text-sm font-medium rounded-md bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            >
+              {isScanning ? 'Scanning…' : 'Scan Credit Report with Gemini'}
+            </button>
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              Accepts PDF or image. Requires a Gemini API key in Settings.
+            </p>
           </div>
 
           {/* Creditors */}
